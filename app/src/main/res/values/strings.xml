@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Last Mile</string>
+    <string name="welcome_message">Welcome to Last Mile Banking</string>
+    <string name="offline_modes">Offline QR • Bluetooth • SMS</string>
+</resources>

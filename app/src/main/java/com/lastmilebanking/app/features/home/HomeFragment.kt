@@ -14,9 +14,15 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         view.findViewById<android.view.View>(R.id.btnQrPay).setOnClickListener {
             androidx.navigation.Navigation.findNavController(view).navigate(R.id.action_home_to_qr)
+        }
+        view.findViewById<android.view.View>(R.id.btnBluetoothPay).setOnClickListener {
+            androidx.navigation.Navigation.findNavController(view).navigate(R.id.action_home_to_bluetooth)
+        }
+        view.findViewById<android.view.View>(R.id.btnSmsPay).setOnClickListener {
+            androidx.navigation.Navigation.findNavController(view).navigate(R.id.action_home_to_sms)
         }
     }
 }

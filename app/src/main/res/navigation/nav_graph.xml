@@ -59,12 +59,30 @@
         <action
             android:id="@+id/action_home_to_qr"
             app:destination="@id/qrPayFragment" />
+        <action
+            android:id="@+id/action_home_to_bluetooth"
+            app:destination="@id/bluetoothPayFragment" />
+        <action
+            android:id="@+id/action_home_to_sms"
+            app:destination="@id/smsPayFragment" />
     </fragment>
-    
+
     <fragment
         android:id="@+id/qrPayFragment"
         android:name="com.lastmilebanking.app.features.payments.QrPayFragment"
         android:label="QR Pay"
         tools:layout="@layout/fragment_qr_pay" />
+
+    <fragment
+        android:id="@+id/bluetoothPayFragment"
+        android:name="com.lastmilebanking.app.features.payments.BluetoothPayFragment"
+        android:label="Bluetooth Pay"
+        tools:layout="@layout/fragment_bluetooth_pay" />
+
+    <fragment
+        android:id="@+id/smsPayFragment"
+        android:name="com.lastmilebanking.app.features.payments.SmsPayFragment"
+        android:label="SMS Pay"
+        tools:layout="@layout/fragment_sms_pay" />
 
 </navigation>

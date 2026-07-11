@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import com.lastmilebanking.app.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -25,7 +24,7 @@ class SplashFragment : Fragment() {
         
         viewLifecycleOwner.lifecycleScope.launch {
             delay(2000) // Delay to show splash branding for MVP
-            findNavController().navigate(R.id.action_splash_to_onboarding)
+            androidx.navigation.Navigation.findNavController(requireView()).navigate(R.id.action_splash_to_onboarding)
         }
     }
 }

@@ -21,7 +21,7 @@ class OnboardingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         view.findViewById<Button>(R.id.btnGetStarted).setOnClickListener {
-            // TODO: Route to Permissions / Auth Phase
+            androidx.navigation.Navigation.findNavController(view).navigate(R.id.action_onboarding_to_login)
         }
     }
 }

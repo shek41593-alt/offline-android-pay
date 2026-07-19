@@ -56,9 +56,9 @@ dependencies {
     implementation("androidx.navigation:navigation-ui-ktx:2.6.0")
 
     // Room
-    implementation("androidx.room:room-runtime:2.5.2")
-    implementation("androidx.room:room-ktx:2.5.2")
-    kapt("androidx.room:room-compiler:2.5.2")
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
     
     // Retrofit & OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -79,6 +79,15 @@ dependencies {
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.google.zxing:core:3.5.2")
 
+    // SwipeRefreshLayout
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // Shimmer loading effect
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
+
+    // DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.8.1")
 
@@ -95,4 +104,9 @@ configurations.all {
         force("androidx.activity:activity:1.7.2")
         force("androidx.activity:activity-ktx:1.7.2")
     }
+}
+
+// Workaround for IDE/Java extensions attempting to execute testClasses task on Android projects
+task("testClasses") {
+    description = "Dummy task to satisfy IDEs (like VS Code Java Extension) running standard Java test tasks in Android projects."
 }

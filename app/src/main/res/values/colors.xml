@@ -14,6 +14,14 @@
     <color name="md_theme_light_surface">#FCFCFF</color>
     <color name="md_theme_light_onSurface">#1A1C1E</color>
 
+    <!-- Semantic / Alias Colors -->
+    <color name="color_primary">#006495</color>
+    <color name="color_secondary">#526070</color>
+    <color name="color_tertiary">#6B4E8A</color>
+    <color name="color_success">#1A7B42</color>
+    <color name="color_error">#BA1A1A</color>
+    <color name="color_warning">#E68A00</color>
+
     <!-- Dark Theme Colors -->
     <color name="md_theme_dark_primary">#8FCDFF</color>
     <color name="md_theme_dark_onPrimary">#003450</color>

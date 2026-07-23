@@ -1,1 +1,1 @@
-# offline pay
+# offline payment

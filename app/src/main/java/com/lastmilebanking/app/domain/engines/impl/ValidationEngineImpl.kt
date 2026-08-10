@@ -4,9 +4,9 @@ import com.lastmilebanking.app.data.local.dao.TransactionDao
 import com.lastmilebanking.app.data.repository.WalletRepository
 import com.lastmilebanking.app.domain.engines.ValidationEngine
 import com.lastmilebanking.app.domain.engines.WalletEngine
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
-
 @Singleton
 class ValidationEngineImpl @Inject constructor(
     private val walletRepository: WalletRepository,
@@ -16,7 +16,7 @@ class ValidationEngineImpl @Inject constructor(
 
     override suspend fun hasSufficientBalance(walletId: String, amount: Double): Boolean {
         if (amount <= 0.0) return false
-        val wallet = walletRepository.getWalletById(walletId)
+        val wallet = walletRepository.getWalletByUserId(walletId).firstOrNull()
         return if (wallet != null) {
             wallet.availableBalance >= amount
         } else {

@@ -10,11 +10,20 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.lastmilebanking.app.R
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class SmsPayFragment : Fragment() {
+
+    private val viewModel: SmsPayViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -28,13 +37,20 @@ class SmsPayFragment : Fragment() {
 
         val etPhone = view.findViewById<TextInputEditText>(R.id.etRecipientPhone)
         val etAmount = view.findViewById<TextInputEditText>(R.id.etAmount)
+        val btnSendSms = view.findViewById<MaterialButton>(R.id.btnSendSms)
 
-        view.findViewById<MaterialButton>(R.id.btnSendSms).setOnClickListener {
+        btnSendSms.setOnClickListener {
             val phone = etPhone.text.toString().trim()
-            val amount = etAmount.text.toString().trim()
+            val amountStr = etAmount.text.toString().trim()
 
-            if (phone.isEmpty() || amount.isEmpty()) {
+            if (phone.isEmpty() || amountStr.isEmpty()) {
                 Toast.makeText(requireContext(), "Please fill all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val amount = amountStr.toDoubleOrNull()
+            if (amount == null || amount <= 0) {
+                Toast.makeText(requireContext(), "Invalid amount", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -43,16 +59,51 @@ class SmsPayFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // Build encrypted offline SMS payload
-            val payload = "LMB:PAY:AMT=$amount:HASH=${System.currentTimeMillis()}"
+            // Let ViewModel process the business logic (validation, transaction, wallet)
+            viewModel.processSmsPayment(phone, amount)
+        }
 
-            try {
-                val smsManager = SmsManager.getDefault()
-                smsManager.sendTextMessage(phone, null, payload, null, null)
-                Toast.makeText(requireContext(), "Payment SMS sent to $phone", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Failed to send SMS: ${e.message}", Toast.LENGTH_SHORT).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    when (state) {
+                        is SmsPayState.Idle -> {
+                            btnSendSms.isEnabled = true
+                            btnSendSms.text = "Send Payment SMS"
+                        }
+                        is SmsPayState.Loading -> {
+                            btnSendSms.isEnabled = false
+                            btnSendSms.text = "Processing..."
+                        }
+                        is SmsPayState.Success -> {
+                            btnSendSms.isEnabled = true
+                            btnSendSms.text = "Send Payment SMS"
+                            
+                            val phone = etPhone.text.toString().trim()
+                            sendSmsInternal(phone, state.payload)
+                            
+                            // Reset state for MVP
+                            etPhone.text?.clear()
+                            etAmount.text?.clear()
+                        }
+                        is SmsPayState.Error -> {
+                            btnSendSms.isEnabled = true
+                            btnSendSms.text = "Send Payment SMS"
+                            Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    private fun sendSmsInternal(phone: String, payload: String) {
+        try {
+            val smsManager = SmsManager.getDefault()
+            smsManager.sendTextMessage(phone, null, payload, null, null)
+            Toast.makeText(requireContext(), "Payment SMS sent to $phone", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to send SMS: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

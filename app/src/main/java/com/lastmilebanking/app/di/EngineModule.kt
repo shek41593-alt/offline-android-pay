@@ -10,6 +10,10 @@ import com.lastmilebanking.app.domain.engines.impl.OfflinePaymentEngineImpl
 import com.lastmilebanking.app.domain.engines.impl.TransactionEngineImpl
 import com.lastmilebanking.app.domain.engines.impl.ValidationEngineImpl
 import com.lastmilebanking.app.domain.engines.impl.WalletEngineImpl
+import com.lastmilebanking.app.domain.engines.SynchronizationEngine
+import com.lastmilebanking.app.domain.engines.impl.SynchronizationEngineImpl
+import com.lastmilebanking.app.domain.connectivity.ConnectivityObserver
+import com.lastmilebanking.app.domain.connectivity.ConnectivityObserverImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -49,4 +53,16 @@ abstract class EngineModule {
     abstract fun bindOfflinePaymentEngine(
         offlinePaymentEngineImpl: OfflinePaymentEngineImpl
     ): OfflinePaymentEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindSynchronizationEngine(
+        synchronizationEngineImpl: SynchronizationEngineImpl
+    ): SynchronizationEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindConnectivityObserver(
+        connectivityObserverImpl: ConnectivityObserverImpl
+    ): ConnectivityObserver
 }

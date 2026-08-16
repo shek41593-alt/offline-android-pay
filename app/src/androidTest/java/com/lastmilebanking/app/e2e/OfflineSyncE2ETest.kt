@@ -71,7 +71,7 @@ class OfflineSyncE2ETest {
             // If observe() needs to exist we will implement it but the old tests say it doesn't.
         }
         
-        engine = SynchronizationEngineImpl(db.transactionDao(), connectivity, api)
+        engine = SynchronizationEngineImpl(context, db.transactionDao(), connectivity, api)
     }
 
     @After

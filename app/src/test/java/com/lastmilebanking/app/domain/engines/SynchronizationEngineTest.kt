@@ -17,6 +17,8 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
 
+import android.content.Context
+
 class SynchronizationEngineTest {
 
     private lateinit var syncEngine: SynchronizationEngineImpl
@@ -26,10 +28,11 @@ class SynchronizationEngineTest {
 
     @Before
     fun setup() {
+        val mockContext: Context? = null
         connectivityObserver = FakeConnectivityObserver()
         transactionDao = FakeTransactionDao()
         fakeApi = FakeLastMileApiService()
-        syncEngine = SynchronizationEngineImpl(transactionDao, connectivityObserver, fakeApi)
+        syncEngine = SynchronizationEngineImpl(mockContext, transactionDao, connectivityObserver, fakeApi)
     }
 
     @Test

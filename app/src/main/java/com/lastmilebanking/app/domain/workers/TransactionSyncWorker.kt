@@ -22,7 +22,12 @@ class TransactionSyncWorker @AssistedInject constructor(
             synchronizationEngine.uploadPendingTransactions()
             Result.success()
         } catch (e: Exception) {
-            Result.retry()
+            if (runAttemptCount >= 5) {
+                // Retry exhaustion. Do not delete transaction, keep it recoverable.
+                Result.failure()
+            } else {
+                Result.retry()
+            }
         }
     }
 }

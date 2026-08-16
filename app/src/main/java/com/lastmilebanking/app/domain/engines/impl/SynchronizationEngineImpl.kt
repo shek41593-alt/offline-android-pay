@@ -9,10 +9,18 @@ import javax.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+import com.lastmilebanking.app.data.network.api.LastMileApiService
+import com.lastmilebanking.app.data.network.dto.SyncTransactionRequestDto
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+
 @Singleton
 class SynchronizationEngineImpl @Inject constructor(
     private val transactionDao: TransactionDao,
-    private val connectivityObserver: ConnectivityObserver
+    private val connectivityObserver: ConnectivityObserver,
+    private val apiService: LastMileApiService
 ) : SynchronizationEngine {
 
     private val syncMutex = Mutex()
@@ -38,18 +46,57 @@ class SynchronizationEngineImpl @Inject constructor(
                     val syncingTx = tx.copy(status = TransactionStatus.SYNCING.name)
                     transactionDao.updateTransaction(syncingTx)
 
-                    // Simulate network upload for Phase 13
-                    // Retrofit usage will be replacing this in Phase 14
-                    val isSuccess = simulateNetworkUpload(syncingTx.transactionId)
-                    if (isSuccess) {
-                        transactionDao.markAsSynced(syncingTx.transactionId)
+                    val formatter = DateTimeFormatter.ISO_INSTANT
+                    val timestampStr = formatter.format(Instant.ofEpochMilli(tx.createdAt))
+
+                    val requestDto = SyncTransactionRequestDto(
+                        transactionId = tx.transactionId,
+                        senderId = tx.senderId,
+                        receiverId = tx.receiverId, // Room uses receiverId
+                        amount = BigDecimal.valueOf(tx.amount), // Preserve precision
+                        currency = tx.currency,
+                        paymentMode = tx.paymentMode, // QR, BLUETOOTH, SMS
+                        timestamp = timestampStr,
+                        signature = tx.encryptedPayload // Signature mapped to encryptedPayload or hash
+                    )
+
+                    val response = apiService.syncTransaction(requestDto)
+
+                    if (response.isSuccessful) {
+                        val body = response.body()
+                        if (body?.status == "RECEIVED" || body?.status == "DUPLICATE") {
+                            transactionDao.markAsSynced(syncingTx.transactionId)
+                        } else if (body?.status == "PROCESSING" || body?.status == "SETTLED") {
+                            transactionDao.markAsSynced(syncingTx.transactionId)
+                        } else {
+                            // FAILED inside 200 OK
+                            transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                        }
                     } else {
-                        // Transient failure -> revert to PENDING_SYNC for retry
-                        transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                        when (response.code()) {
+                            401, 403 -> {
+                                // Auth error, do not retry automatically.
+                                // We keep it PENDING_SYNC but we don't throw to avoid WorkManager looping immediately.
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                            }
+                            400 -> {
+                                // Bad request, do not retry
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                            }
+                            409 -> {
+                                // Idempotency conflict. Treat as synced if true duplicate.
+                                transactionDao.markAsSynced(syncingTx.transactionId)
+                            }
+                            else -> {
+                                // 5xx or other transient
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                                throw Exception("Transient server error ${response.code()}")
+                            }
+                        }
                     }
                 } catch (e: Exception) {
-                    // Exception -> revert to PENDING_SYNC for retry
                     transactionDao.updateTransaction(tx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                    throw e // Bubble up to trigger WorkManager retry
                 }
             }
         }
@@ -64,7 +111,7 @@ class SynchronizationEngineImpl @Inject constructor(
     }
 
     private suspend fun simulateNetworkUpload(transactionId: String): Boolean {
-        kotlinx.coroutines.delay(1000)
-        return true // For Phase 13 testing
+        // Obsolete
+        return true
     }
 }

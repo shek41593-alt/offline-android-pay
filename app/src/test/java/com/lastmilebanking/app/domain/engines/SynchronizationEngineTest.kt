@@ -2,25 +2,34 @@ package com.lastmilebanking.app.domain.engines
 
 import com.lastmilebanking.app.data.local.dao.TransactionDao
 import com.lastmilebanking.app.data.local.entity.TransactionEntity
+import com.lastmilebanking.app.data.network.api.LastMileApiService
+import com.lastmilebanking.app.data.network.dto.SyncTransactionRequestDto
+import com.lastmilebanking.app.data.network.dto.SyncTransactionResponseDto
 import com.lastmilebanking.app.domain.connectivity.ConnectivityObserver
 import com.lastmilebanking.app.domain.engines.impl.SynchronizationEngineImpl
 import com.lastmilebanking.app.domain.models.TransactionStatus
 import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 
 class SynchronizationEngineTest {
 
     private lateinit var syncEngine: SynchronizationEngineImpl
     private lateinit var connectivityObserver: FakeConnectivityObserver
     private lateinit var transactionDao: FakeTransactionDao
+    private lateinit var fakeApi: FakeLastMileApiService
 
     @Before
     fun setup() {
         connectivityObserver = FakeConnectivityObserver()
         transactionDao = FakeTransactionDao()
-        syncEngine = SynchronizationEngineImpl(transactionDao, connectivityObserver)
+        fakeApi = FakeLastMileApiService()
+        syncEngine = SynchronizationEngineImpl(transactionDao, connectivityObserver, fakeApi)
     }
 
     @Test
@@ -32,10 +41,9 @@ class SynchronizationEngineTest {
 
     @Test
     fun `TEST 2 - Pending transaction survives application restart`() {
-        // Simulating survival via local DAO persistence wrapper
         val tx = createTx(TransactionStatus.PENDING_SYNC)
         runBlocking { transactionDao.insertTransaction(tx) }
-        val restaredDao = transactionDao // Imagine restart
+        val restaredDao = transactionDao
         runBlocking {
             assertEquals(1, restaredDao.getPendingTransactions().size)
         }
@@ -46,6 +54,7 @@ class SynchronizationEngineTest {
         connectivityObserver.isConnected = true
         val tx = createTx(TransactionStatus.PENDING_SYNC)
         runBlocking { transactionDao.insertTransaction(tx) }
+        fakeApi.responses[tx.transactionId] = Response.success(SyncTransactionResponseDto(tx.transactionId, "RECEIVED", ""))
         runBlocking { syncEngine.uploadPendingTransactions() }
         assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
@@ -55,6 +64,7 @@ class SynchronizationEngineTest {
         connectivityObserver.isConnected = true
         val tx = createTx(TransactionStatus.PENDING_SYNC)
         runBlocking { transactionDao.insertTransaction(tx) }
+        fakeApi.responses[tx.transactionId] = Response.success(SyncTransactionResponseDto(tx.transactionId, "SETTLED", ""))
         runBlocking { syncEngine.uploadPendingTransactions() }
         assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
@@ -62,14 +72,16 @@ class SynchronizationEngineTest {
     @Test
     fun `TEST 5 - Transient failure causes retry via PENDING_SYNC state`() {
         connectivityObserver.isConnected = true
-        transactionDao.failNextUpdate = true
         val tx = createTx(TransactionStatus.PENDING_SYNC)
-        
-        runBlocking { 
-            transactionDao.insertTransaction(tx)
-            syncEngine.uploadPendingTransactions()
+        runBlocking { transactionDao.insertTransaction(tx) }
+        fakeApi.responses[tx.transactionId] = Response.error(500, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
+        var threw = false
+        try {
+            runBlocking { syncEngine.uploadPendingTransactions() }
+        } catch (e: Exception) {
+            threw = true
         }
-        // Because of failNextUpdate, it will catch exception and revert to PENDING_SYNC
+        assertTrue(threw)
         assertEquals(TransactionStatus.PENDING_SYNC.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
@@ -78,8 +90,10 @@ class SynchronizationEngineTest {
         val txId = "TXN-RETRY123"
         val tx = createTx(TransactionStatus.PENDING_SYNC).copy(transactionId = txId)
         runBlocking { transactionDao.insertTransaction(tx) }
+        fakeApi.responses[txId] = Response.success(SyncTransactionResponseDto(txId, "RECEIVED", ""))
         runBlocking { syncEngine.uploadPendingTransactions() }
         assertEquals(txId, transactionDao.transactions.values.first().transactionId)
+        assertEquals(txId, fakeApi.requests.first().transactionId)
     }
 
     @Test
@@ -87,27 +101,43 @@ class SynchronizationEngineTest {
         val tx = createTx(TransactionStatus.PENDING_SYNC)
         runBlocking { 
             transactionDao.insertTransaction(tx)
+            fakeApi.responses[tx.transactionId] = Response.success(SyncTransactionResponseDto(tx.transactionId, "DUPLICATE", ""))
             syncEngine.uploadPendingTransactions()
             syncEngine.uploadPendingTransactions()
         }
         assertEquals(1, transactionDao.transactions.size)
+        assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
     @Test
     fun `TEST 8 - Permanent failure is handled correctly`() {
-        // A placeholder showing an explicit failure status, though currently simple simulated upload returns true or false
         connectivityObserver.isConnected = true
-        val tx = createTx(TransactionStatus.FAILED)
+        val tx = createTx(TransactionStatus.PENDING_SYNC)
         runBlocking { transactionDao.insertTransaction(tx) }
-        runBlocking { syncEngine.uploadPendingTransactions() } // FAILED won't be picked up
+        fakeApi.responses[tx.transactionId] = Response.error(400, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
+        runBlocking { syncEngine.uploadPendingTransactions() } 
         assertEquals(TransactionStatus.FAILED.name, transactionDao.transactions[tx.transactionId]?.status)
+    }
+
+    @Test
+    fun `TEST 9 - 401 Unauthorized prevents retry loop`() = runBlocking {
+        val tx = createTx(TransactionStatus.PENDING_SYNC)
+        transactionDao.insertTransaction(tx)
+
+        fakeApi.responses[tx.transactionId] = Response.error(401, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
+
+        // Does not throw exception
+        syncEngine.uploadPendingTransactions()
+
+        val updated = transactionDao.transactions[tx.transactionId]!!
+        assertEquals(TransactionStatus.PENDING_SYNC.name, updated.status)
     }
 
     private fun createTx(status: TransactionStatus): TransactionEntity {
         return TransactionEntity(
             transactionId = "TXN-${System.currentTimeMillis()}",
             walletId = "W1", senderId = "S1", receiverId = "R1", receiverName = "Rec",
-            amount = 100.0, transactionType = "SEND", paymentMode = "SMS",
+            amount = 100.0, transactionType = "SEND", paymentMode = "QR",
             status = status.name, isSynced = false
         )
     }
@@ -120,17 +150,12 @@ class FakeConnectivityObserver : ConnectivityObserver {
 
 class FakeTransactionDao : TransactionDao {
     val transactions = mutableMapOf<String, TransactionEntity>()
-    var failNextUpdate = false
 
     override suspend fun insertTransaction(transaction: TransactionEntity) {
         transactions[transaction.transactionId] = transaction
     }
 
     override suspend fun updateTransaction(transaction: TransactionEntity) {
-        if (failNextUpdate) {
-            failNextUpdate = false
-            throw RuntimeException("Transient Network Failure")
-        }
         transactions[transaction.transactionId] = transaction
     }
 
@@ -142,9 +167,23 @@ class FakeTransactionDao : TransactionDao {
         return transactions.values.filter { !it.isSynced && it.status == TransactionStatus.PENDING_SYNC.name }
     }
     
-    // Unused overrides for test
     override fun getTransactionsByWallet(walletId: String) = throw NotImplementedError()
     override fun getRecentTransactions(walletId: String, limit: Int) = throw NotImplementedError()
     override suspend fun getTransactionById(id: String) = transactions[id]
     override fun getPendingCount(walletId: String) = throw NotImplementedError()
+}
+
+class FakeLastMileApiService : LastMileApiService {
+    val requests = mutableListOf<SyncTransactionRequestDto>()
+    val responses = mutableMapOf<String, Response<SyncTransactionResponseDto>>()
+
+    override suspend fun register(request: com.lastmilebanking.app.data.network.dto.RegisterRequestDto) = TODO()
+    override suspend fun login(request: com.lastmilebanking.app.data.network.dto.LoginRequestDto) = TODO()
+    override suspend fun getTransactionStatus(transactionId: String) = TODO()
+    override suspend fun checkHealth() = TODO()
+
+    override suspend fun syncTransaction(request: SyncTransactionRequestDto): Response<SyncTransactionResponseDto> {
+        requests.add(request)
+        return responses[request.transactionId] ?: Response.error(500, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
+    }
 }

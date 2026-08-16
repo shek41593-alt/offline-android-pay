@@ -34,7 +34,9 @@ object NetworkModule {
                 override fun log(message: String) {
                     if (message.contains("Bearer", ignoreCase = true) ||
                         message.contains("\"password\"", ignoreCase = true) ||
-                        message.contains("\"signature\"", ignoreCase = true)) {
+                        message.contains("\"signature\"", ignoreCase = true) ||
+                        message.contains("accessToken", ignoreCase = true) ||
+                        message.contains("Authorization", ignoreCase = true)) {
                         Log.d("OkHttp", "[REDACTED]")
                     } else {
                         Log.d("OkHttp", message)

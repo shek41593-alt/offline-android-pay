@@ -14,17 +14,13 @@ class EncryptedTokenStorage @Inject constructor(
 
     private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
 
-    private val sharedPreferences = try {
-        EncryptedSharedPreferences.create(
-            "secured_auth_prefs",
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    } catch (e: Exception) {
-        context.getSharedPreferences("fallback_auth_prefs", Context.MODE_PRIVATE)
-    }
+    private val sharedPreferences = EncryptedSharedPreferences.create(
+        "secured_auth_prefs",
+        masterKeyAlias,
+        context,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     private val TOKEN_KEY = "jwt_token"
 

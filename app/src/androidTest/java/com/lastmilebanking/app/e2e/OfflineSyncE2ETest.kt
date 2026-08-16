@@ -142,9 +142,10 @@ class OfflineSyncE2ETest {
         val mutatedTx = conflictTx.copy(amount = 250.0, isSynced = false, status = TransactionStatus.PENDING_SYNC.name)
         db.transactionDao().updateTransaction(mutatedTx)
         engine.uploadPendingTransactions()
-        // the engine marks 409 as synced according to Phase 16.5 design, so
+        // the engine marks 409 as FAILED according to Phase 16.7 design, so
         val conflictResult = db.transactionDao().getTransactionById(conflictTxId)
-        assertTrue(conflictResult?.isSynced ?: false)
+        assertFalse(conflictResult?.isSynced ?: true)
+        assertEquals(TransactionStatus.FAILED.name, conflictResult?.status)
         
         // TEST 6. Multiple Offline Payments
         val ms1 = "TX-A-${UUID.randomUUID()}"

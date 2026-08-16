@@ -7,9 +7,13 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import dagger.hilt.android.AndroidEntryPoint
-
+import javax.inject.Inject
+import androidx.lifecycle.lifecycleScope
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var sessionManager: com.lastmilebanking.app.data.network.auth.SessionManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -31,6 +35,17 @@ class MainActivity : AppCompatActivity() {
                 else -> {
                     bottomNavView.visibility = View.VISIBLE
                 }
+            }
+        }
+
+        lifecycleScope.launchWhenStarted {
+            sessionManager.unauthorizedEvent.collect {
+                // Navigate to login, clearing backstack
+                navController.navigate(R.id.loginFragment, null, 
+                    androidx.navigation.NavOptions.Builder()
+                        .setPopUpTo(navController.graph.id, true)
+                        .build()
+                )
             }
         }
     }

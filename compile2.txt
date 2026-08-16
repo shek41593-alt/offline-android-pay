@@ -19,18 +19,20 @@
 > Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
 > Task :app:kaptGenerateStubsDebugKotlin UP-TO-DATE
+> Task :app:kaptDebugKotlin UP-TO-DATE
 
-> Task :app:kaptDebugKotlin FAILED
-E:\offlinepay\app\build\tmp\kapt3\stubs\debug\com\lastmilebanking\app\MainActivity.java:17: error: incompatible types: NonExistentClass cannot be converted to Annotation
-    @error.NonExistentClass
-          ^
+> Task :app:compileDebugKotlin
+e: file:///E:/offlinepay/app/src/main/java/com/lastmilebanking/app/MainActivity.kt:41:28 Unresolved reference: lifecycleScope
+e: file:///E:/offlinepay/app/src/main/java/com/lastmilebanking/app/MainActivity.kt:42:46 Suspend function 'collect' should be called only from a coroutine or another suspend function
+
+> Task :app:compileDebugKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':app:kaptDebugKotlin'.
-> A failure occurred while executing org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask$KaptExecutionWorkAction
-   > java.lang.reflect.InvocationTargetException (no error message)
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -38,5 +40,5 @@ Execution failed for task ':app:kaptDebugKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 4s
-20 actionable tasks: 2 executed, 18 up-to-date
+BUILD FAILED in 9s
+21 actionable tasks: 2 executed, 19 up-to-date

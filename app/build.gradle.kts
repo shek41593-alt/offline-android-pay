@@ -51,6 +51,7 @@ dependencies {
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
     
     // Navigation
     implementation("androidx.navigation:navigation-fragment-ktx:2.6.0")
@@ -90,6 +91,9 @@ dependencies {
 
     // DataStore Preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Security Crypto
+    implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.8.1")

@@ -73,11 +73,16 @@ class SynchronizationEngineImpl @Inject constructor(
         if (!connectivityObserver.isNetworkAvailable()) return
 
         syncMutex.withLock {
-            val pending = transactionDao.getPendingTransactions()
-            for (tx in pending) {
-                if (tx.status == TransactionStatus.SYNCING.name) continue
+            while (true) {
+                val pending = transactionDao.getPendingTransactions(limit = 50)
+                if (pending.isEmpty()) break
                 
-                try {
+                var anyProcessed = false
+
+                for (tx in pending) {
+                    if (tx.status == TransactionStatus.SYNCING.name) continue
+                    
+                    try {
                     // Mark as SYNCING
                     val syncingTx = tx.copy(status = TransactionStatus.SYNCING.name)
                     transactionDao.updateTransaction(syncingTx)
@@ -102,11 +107,13 @@ class SynchronizationEngineImpl @Inject constructor(
                         val body = response.body()
                         if (body?.status == "RECEIVED" || body?.status == "DUPLICATE") {
                             transactionDao.markAsSynced(syncingTx.transactionId)
+                            anyProcessed = true
                         } else if (body?.status == "PROCESSING" || body?.status == "SETTLED") {
                             transactionDao.markAsSynced(syncingTx.transactionId)
+                            anyProcessed = true
                         } else {
-                            // FAILED inside 200 OK
                             transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                            anyProcessed = true // Updated status so it leaves queue
                         }
                     } else {
                         when (response.code()) {
@@ -116,13 +123,12 @@ class SynchronizationEngineImpl @Inject constructor(
                                 transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
                             }
                             400 -> {
-                                // Bad request, do not retry
                                 transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                                anyProcessed = true
                             }
                             409 -> {
-                                // Idempotency conflict with different payload.
-                                // Do not retry indefinitely. Handle conflict correctly.
                                 transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                                anyProcessed = true
                             }
                             else -> {
                                 // 5xx or other transient
@@ -135,9 +141,13 @@ class SynchronizationEngineImpl @Inject constructor(
                     transactionDao.updateTransaction(tx.copy(status = TransactionStatus.PENDING_SYNC.name))
                     throw e // Bubble up to trigger WorkManager retry
                 }
-            }
-        }
-    }
+                } // End for (tx in pending)
+                
+                // If everything in this batch failed transiently, do not loop continuously.
+                if (!anyProcessed) break
+            } // End while
+        } // End withLock
+    } // End uploadPendingTransactions
 
     override suspend fun resolveConflicts() {
         // Future Phase

@@ -15,7 +15,7 @@ import com.lastmilebanking.app.data.local.entity.WalletEntity
         WalletEntity::class,
         TransactionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class LastMileDatabase : RoomDatabase() {

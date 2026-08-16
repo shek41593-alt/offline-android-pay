@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
+import androidx.room.Index
+
 @Entity(
     tableName = "wallet",
     foreignKeys = [ForeignKey(
@@ -11,7 +13,8 @@ import androidx.room.PrimaryKey
         parentColumns = ["userId"],
         childColumns = ["userId"],
         onDelete = ForeignKey.CASCADE
-    )]
+    )],
+    indices = [Index("userId")]
 )
 data class WalletEntity(
     @PrimaryKey

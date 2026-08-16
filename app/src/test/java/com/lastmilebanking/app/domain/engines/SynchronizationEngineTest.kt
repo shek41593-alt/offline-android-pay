@@ -166,8 +166,8 @@ class FakeTransactionDao : TransactionDao {
         transactions[transactionId] = transactions[transactionId]?.copy(status = TransactionStatus.SYNCED.name, isSynced = true)!!
     }
 
-    override suspend fun getPendingTransactions(): List<TransactionEntity> {
-        return transactions.values.filter { !it.isSynced && it.status == TransactionStatus.PENDING_SYNC.name }
+    override suspend fun getPendingTransactions(limit: Int): List<TransactionEntity> {
+        return transactions.values.filter { !it.isSynced && it.status == TransactionStatus.PENDING_SYNC.name }.take(limit)
     }
     
     override fun getTransactionsByWallet(walletId: String) = throw NotImplementedError()

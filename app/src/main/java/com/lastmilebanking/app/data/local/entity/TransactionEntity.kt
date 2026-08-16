@@ -3,7 +3,15 @@ package com.lastmilebanking.app.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions")
+import androidx.room.Index
+
+@Entity(
+    tableName = "transactions",
+    indices = [
+        Index("walletId", "createdAt"),
+        Index("isSynced", "createdAt")
+    ]
+)
 data class TransactionEntity(
     @PrimaryKey
     val transactionId: String,

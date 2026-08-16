@@ -18,8 +18,8 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE walletId = :walletId ORDER BY createdAt DESC LIMIT :limit")
     fun getRecentTransactions(walletId: String, limit: Int = 10): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE isSynced = 0 ORDER BY createdAt ASC")
-    suspend fun getPendingTransactions(): List<TransactionEntity>
+    @Query("SELECT * FROM transactions WHERE isSynced = 0 ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getPendingTransactions(limit: Int = 50): List<TransactionEntity>
 
     @Query("UPDATE transactions SET isSynced = 1, status = 'SYNCED', syncedAt = :syncedAt WHERE transactionId = :transactionId")
     suspend fun markAsSynced(transactionId: String, syncedAt: Long = System.currentTimeMillis())

@@ -89,22 +89,13 @@
 > Task :app:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
 > Task :app:packageDebugAndroidTest UP-TO-DATE
 > Task :app:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
-
-> Task :app:connectedDebugAndroidTest
-Starting 1 tests on CPH2695 - 15
-
-com.lastmilebanking.app.e2e.OfflineSyncE2ETest > testEndToEndOfflineSync[CPH2695 - 15] [31mFAILED [0m
-	java.lang.AssertionError
-	at org.junit.Assert.fail(Assert.java:87)
-Tests on CPH2695 - 15 failed: There was 1 failure(s).
-
 > Task :app:connectedDebugAndroidTest FAILED
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
 Execution failed for task ':app:connectedDebugAndroidTest'.
-> There were failing tests. See the report at: file:///E:/offlinepay/app/build/reports/androidTests/connected/debug/index.html
+> com.android.builder.testing.api.DeviceException: No connected devices!
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -112,5 +103,5 @@ Execution failed for task ':app:connectedDebugAndroidTest'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 30s
+BUILD FAILED in 3s
 80 actionable tasks: 2 executed, 78 up-to-date

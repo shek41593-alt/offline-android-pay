@@ -12,9 +12,9 @@ import kotlinx.coroutines.sync.withLock
 import com.lastmilebanking.app.data.network.api.LastMileApiService
 import com.lastmilebanking.app.data.network.dto.SyncTransactionRequestDto
 import java.math.BigDecimal
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 import android.content.Context
 import androidx.work.BackoffPolicy
@@ -87,8 +87,8 @@ class SynchronizationEngineImpl @Inject constructor(
                     val syncingTx = tx.copy(status = TransactionStatus.SYNCING.name)
                     transactionDao.updateTransaction(syncingTx)
 
-                    val formatter = DateTimeFormatter.ISO_INSTANT
-                    val timestampStr = formatter.format(Instant.ofEpochMilli(tx.createdAt))
+                    val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+                    val timestampStr = formatter.format(Date(tx.createdAt))
 
                     val requestDto = SyncTransactionRequestDto(
                         transactionId = tx.transactionId,

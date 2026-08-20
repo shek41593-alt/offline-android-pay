@@ -35,3 +35,5 @@ The Offline Android Pay project currently supports a fully functional local offl
 - **SMS Payment Status**: Implemented and tested
 - **QR Payment Status**: Stubbed / Not fully integrated
 - **Bluetooth Payment Status**: Stubbed / Not fully integrated
+
+*Last updated: August 2026*

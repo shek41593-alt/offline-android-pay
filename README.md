@@ -24,3 +24,8 @@ Major implemented components include an authentication module, an offline transa
 - **Wallet & Ledger**: A local representation of the user's wallet and ledger data that stays synchronized.
 - **Settlement**: Automated reconcilation process.
 - **Security**: Hardened network configurations, encrypted local storage, and granular runtime permissions properly handle sensitive financial logic in compliance with security guidelines.
+
+## Payment Channel Status
+- **SMS Payment**: Fully implemented and tested. Allows offline transaction delivery via secure, compressed SMS payloads to the backend's receiver numbers.
+- **QR Payment**: Proof of concept / stubbed. UI fragments exist for displaying and scanning QR codes, but the full end-to-end QR channel is not yet integrated.
+- **Bluetooth Payment**: Proof of concept / stubbed. Core navigation and fragments are present, but local Bluetooth communication protocols for finalizing a transaction are pending implementation.

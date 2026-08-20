@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -24,6 +25,24 @@ import kotlinx.coroutines.launch
 class SmsPayFragment : Fragment() {
 
     private val viewModel: SmsPayViewModel by viewModels()
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                // Permission granted, trigger the action if fields are filled
+                val phone = view?.findViewById<TextInputEditText>(R.id.etRecipientPhone)?.text?.toString()?.trim() ?: ""
+                val amountStr = view?.findViewById<TextInputEditText>(R.id.etAmount)?.text?.toString()?.trim() ?: ""
+                if (phone.isNotEmpty() && amountStr.isNotEmpty()) {
+                    amountStr.toDoubleOrNull()?.let { amount ->
+                        if (amount > 0) {
+                            viewModel.processSmsPayment(phone, amount)
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(requireContext(), "Permission is required to send payment SMS", Toast.LENGTH_LONG).show()
+            }
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -55,7 +74,7 @@ class SmsPayFragment : Fragment() {
             }
 
             if (!hasSmsPermission()) {
-                Toast.makeText(requireContext(), "SMS permission not granted", Toast.LENGTH_SHORT).show()
+                requestPermissionLauncher.launch(Manifest.permission.SEND_SMS)
                 return@setOnClickListener
             }
 
@@ -99,7 +118,7 @@ class SmsPayFragment : Fragment() {
 
     private fun sendSmsInternal(phone: String, payload: String) {
         try {
-            val smsManager = SmsManager.getDefault()
+            val smsManager = requireContext().getSystemService(SmsManager::class.java)
             smsManager.sendTextMessage(phone, null, payload, null, null)
             Toast.makeText(requireContext(), "Payment SMS sent to $phone", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {

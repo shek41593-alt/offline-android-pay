@@ -2,7 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <!-- Development backend HTTP over Local Network -->
-        <domain includeSubdomains="false">10.43.215.250</domain>
+        <domain includeSubdomains="false">10.76.75.250</domain>
     </domain-config>
     <base-config cleartextTrafficPermitted="false" />
 </network-security-config>

@@ -16,3 +16,11 @@ Major implemented components include an authentication module, an offline transa
 - **Room**: Provides a local SQLite abstraction to securely store pending and historical transactions locally.
 - **WorkManager**: Schedules reliable background jobs to perform transaction synchronization.
 - **Transaction Synchronization**: A resilient engine built around WorkManager and Retrofit that ensures every offline transaction makes it securely to the server when network is restored.
+
+## Offline Features and Security
+- **Offline Mode**: Transactions can be recorded entirely locally using available offline payment channels.
+- **Retry & Recovery**: Built-in mechanisms to retry failed operations and recover gracefully from edge cases.
+- **Idempotency**: All network requests to the backend handle idempotency to avoid double charges.
+- **Wallet & Ledger**: A local representation of the user's wallet and ledger data that stays synchronized.
+- **Settlement**: Automated reconcilation process.
+- **Security**: Hardened network configurations, encrypted local storage, and granular runtime permissions properly handle sensitive financial logic in compliance with security guidelines.

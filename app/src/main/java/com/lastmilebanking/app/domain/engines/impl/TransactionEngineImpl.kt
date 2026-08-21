@@ -16,7 +16,8 @@ class TransactionEngineImpl @Inject constructor(
         senderId: String,
         receiverId: String,
         amount: Double,
-        type: String
+        type: String,
+        paymentMode: String
     ): Result<String> {
         return try {
             val transactionId = generateTransactionId()
@@ -28,7 +29,7 @@ class TransactionEngineImpl @Inject constructor(
                 receiverName = "Unknown",
                 amount = amount,
                 transactionType = type,
-                paymentMode = "SMS",
+                paymentMode = paymentMode,
                 status = "PENDING_SYNC",
                 encryptedPayload = "",
                 transactionHash = generateTransactionHash("$senderId$receiverId$amount$type"),

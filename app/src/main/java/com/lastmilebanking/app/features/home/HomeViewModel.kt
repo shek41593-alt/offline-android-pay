@@ -13,13 +13,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-import com.lastmilebanking.app.data.network.auth.TokenStorage
-
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val walletRepository: WalletRepository,
-    private val tokenStorage: TokenStorage
+    private val walletRepository: WalletRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -34,11 +31,6 @@ class HomeViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadDashboard() {
-        if (!tokenStorage.hasToken()) {
-            _uiState.value = HomeUiState.Error("Please log in to view data.")
-            return
-        }
-        
         viewModelScope.launch {
 
             userRepository.getActiveUser()

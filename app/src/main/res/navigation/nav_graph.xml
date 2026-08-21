@@ -53,7 +53,7 @@
         <action
             android:id="@+id/action_otp_to_home"
             app:destination="@id/homeFragment"
-            app:popUpTo="@id/loginFragment"
+            app:popUpTo="@id/landingFragment"
             app:popUpToInclusive="true"/>
     </fragment>
 

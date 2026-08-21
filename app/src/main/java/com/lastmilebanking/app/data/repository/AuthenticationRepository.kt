@@ -8,12 +8,16 @@ import com.lastmilebanking.app.data.network.dto.RegisterRequestDto
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import io.appwrite.services.Account
+import io.appwrite.exceptions.AppwriteException
+
 @Singleton
 class AuthenticationRepository @Inject constructor(
     private val api: LastMileApiService,
     private val tokenStorage: TokenStorage,
     private val sessionManager: SessionManager,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val appwriteAccount: Account
 ) {
     suspend fun login(phoneNumber: String, otp: String): Boolean {
         return try {
@@ -79,8 +83,42 @@ class AuthenticationRepository @Inject constructor(
         }
     }
 
-    fun logout() {
+    suspend fun logout() {
+        try {
+            appwriteAccount.deleteSession("current")
+        } catch (e: Exception) {
+            // Ignore failure if offline or already erased
+        }
         sessionManager.logout()
+        tokenStorage.clearToken()
+    }
+
+    suspend fun isValidSession(): Boolean {
+        if (!tokenStorage.hasToken()) {
+            return false
+        }
+        if (com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED) {
+            if (tokenStorage.getToken() == "LOCAL_DEV_OFFLINE_SESSION") {
+                return true
+            }
+        }
+        
+        return try {
+            val session = appwriteAccount.getSession("current")
+            session.current
+        } catch (e: AppwriteException) {
+            // If the error code implies network issue, we might want to default to true for offline mode.
+            // But AppwriteException has codes. 401 is unauthorized (invalid session).
+            if (e.code == 401) {
+                tokenStorage.clearToken()
+                false
+            } else {
+                // If it's a network error (e.g. 0 or unreachable) allow offline fallback since we have a JWT
+                true
+            }
+        } catch (e: Exception) {
+            true // Allow offline
+        }
     }
 
     fun isAuthenticated(): Boolean {

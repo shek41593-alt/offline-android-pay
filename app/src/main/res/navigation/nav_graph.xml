@@ -135,5 +135,22 @@
         android:name="com.lastmilebanking.app.features.payments.SmsPayFragment"
         android:label="SMS Pay"
         tools:layout="@layout/fragment_sms_pay" />
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.lastmilebanking.app.features.history.HistoryFragment"
+        android:label="History"
+        tools:layout="@layout/fragment_history" />
+
+    <fragment
+        android:id="@+id/walletFragment"
+        android:name="com.lastmilebanking.app.features.wallet.WalletFragment"
+        android:label="Wallet"
+        tools:layout="@layout/fragment_wallet" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.lastmilebanking.app.features.profile.ProfileFragment"
+        android:label="Profile"
+        tools:layout="@layout/fragment_profile" />
 
 </navigation>

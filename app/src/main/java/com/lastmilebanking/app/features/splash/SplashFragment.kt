@@ -38,47 +38,12 @@ class SplashFragment : Fragment() {
         
         viewLifecycleOwner.lifecycleScope.launch {
             delay(1500)
-            
-            val hasJwt = tokenStorage.hasToken()
-            
-            val hasAppwriteSession = try {
-                val session = appwriteAccount.getSession("current")
-                session.current
-            } catch (e: io.appwrite.exceptions.AppwriteException) {
-                if (e.code == 401) false else true // If offline, assume true for now
-            } catch (e: Exception) {
-                true 
-            }
-            
-            // Allow offline MVP bypass for dev fallback
-            val isDevAuth = com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED && tokenStorage.getToken() == "LOCAL_DEV_OFFLINE_SESSION"
-            
             val navController = androidx.navigation.Navigation.findNavController(requireView())
-            
-            if (isDevAuth || (hasJwt && hasAppwriteSession)) {
-                // Fully Authenticated -> Home
-                navController.navigate(
-                    R.id.action_splash_to_home,
-                    null,
-                    androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
-                )
-            } else if (hasAppwriteSession && !hasJwt) {
-                // Appwrite OTP verified, but backend registration/JWT incomplete -> Resume Onboarding
-                // Send to Create Password as entry to finishing profile
-                navController.navigate(
-                    R.id.createPasswordFragment,
-                    null,
-                    androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
-                )
-            } else {
-                // No valid session, or expired -> Landing
-                authRepository.logout() // clear any stale state
-                navController.navigate(
-                    R.id.action_splash_to_landing,
-                    null,
-                    androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
-                )
-            }
+            navController.navigate(
+                R.id.action_splash_to_home,
+                null,
+                androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
+            )
         }
     }
 }

@@ -25,6 +25,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "DEV_AUTH_FALLBACK_ENABLED", "false")
+        }
+        debug {
+            buildConfigField("boolean", "DEV_AUTH_FALLBACK_ENABLED", "true")
         }
     }
     compileOptions {

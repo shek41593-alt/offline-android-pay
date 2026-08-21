@@ -140,9 +140,31 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Checking)
+    val authState = _authState.asStateFlow()
+
+    fun checkAuthStatus() {
+        viewModelScope.launch {
+            _authState.value = AuthState.Checking
+            val isValid = authRepository.isValidSession()
+            if (isValid) {
+                _authState.value = AuthState.Authenticated
+            } else {
+                authRepository.logout()
+                _authState.value = AuthState.Unauthenticated
+            }
+        }
+    }
+
     fun resetState() {
         _loginState.value = LoginState.Initial
     }
+}
+
+sealed class AuthState {
+    object Checking : AuthState()
+    object Authenticated : AuthState()
+    object Unauthenticated : AuthState()
 }
 
 sealed class LoginState {

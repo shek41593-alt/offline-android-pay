@@ -8,13 +8,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.lastmilebanking.app.R
@@ -25,22 +28,27 @@ import kotlinx.coroutines.launch
 class SmsPayFragment : Fragment() {
 
     private val viewModel: SmsPayViewModel by viewModels()
+    private var paymentDialog: AlertDialog? = null
+    
+    // Store variables temporarilly for permission continuation
+    private var pendingPhone: String? = null
+    private var pendingAmount: Double? = null
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                // Permission granted, trigger the action if fields are filled
-                val phone = view?.findViewById<TextInputEditText>(R.id.etRecipientPhone)?.text?.toString()?.trim() ?: ""
-                val amountStr = view?.findViewById<TextInputEditText>(R.id.etAmount)?.text?.toString()?.trim() ?: ""
-                if (phone.isNotEmpty() && amountStr.isNotEmpty()) {
-                    amountStr.toDoubleOrNull()?.let { amount ->
-                        if (amount > 0) {
-                            viewModel.processSmsPayment(phone, amount)
-                        }
+                pendingPhone?.let { phone ->
+                    pendingAmount?.let { amount ->
+                        viewModel.prepareSmsPayment(phone, amount)
                     }
                 }
             } else {
-                Toast.makeText(requireContext(), "Permission is required to send payment SMS", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    requireContext(),
+                    "SMS permission is required to send payment",
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetState()
             }
         }
 
@@ -53,6 +61,11 @@ class SmsPayFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val toolbar: MaterialToolbar = view.findViewById(R.id.toolbar)
+        toolbar.setNavigationOnClickListener {
+            findNavController().popBackStack()
+        }
 
         val etPhone = view.findViewById<TextInputEditText>(R.id.etRecipientPhone)
         val etAmount = view.findViewById<TextInputEditText>(R.id.etAmount)
@@ -73,13 +86,7 @@ class SmsPayFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            if (!hasSmsPermission()) {
-                requestPermissionLauncher.launch(Manifest.permission.SEND_SMS)
-                return@setOnClickListener
-            }
-
-            // Let ViewModel process the business logic (validation, transaction, wallet)
-            viewModel.processSmsPayment(phone, amount)
+            viewModel.verifySmsPayment(phone, amount)
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -94,36 +101,99 @@ class SmsPayFragment : Fragment() {
                             btnSendSms.isEnabled = false
                             btnSendSms.text = "Processing..."
                         }
+                        is SmsPayState.Verify -> {
+                            showConfirmationDialog(state.recipientPhone, state.amount)
+                            // State remains verify until dismissed or confirmed
+                        }
+                        is SmsPayState.ReadyToSend -> {
+                            sendSmsInternal(state.recipientPhone, state.amount, state.payload)
+                        }
                         is SmsPayState.Success -> {
                             btnSendSms.isEnabled = true
                             btnSendSms.text = "Send Payment SMS"
-                            
-                            val phone = etPhone.text.toString().trim()
-                            sendSmsInternal(phone, state.payload)
-                            
-                            // Reset state for MVP
+                            showSuccessDialog(state.transactionId)
                             etPhone.text?.clear()
                             etAmount.text?.clear()
+                            viewModel.resetState()
                         }
                         is SmsPayState.Error -> {
                             btnSendSms.isEnabled = true
                             btnSendSms.text = "Send Payment SMS"
-                            Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
+                            showErrorDialog(state.message)
+                            viewModel.resetState()
                         }
                     }
                 }
             }
         }
     }
+    
+    private fun showConfirmationDialog(receiverId: String, amount: Double) {
+        if (paymentDialog?.isShowing == true) return
+        
+        val builder = AlertDialog.Builder(requireContext())
+            .setTitle("Confirm SMS Payment")
+            .setMessage("Send SMS payment of $$amount to $receiverId?")
+            .setCancelable(false)
+            .setPositiveButton("Confirm Payment", null)
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+                viewModel.resetState()
+            }
+        
+        paymentDialog = builder.create()
+        paymentDialog?.setOnShowListener {
+            val positiveButton = paymentDialog?.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton?.setOnClickListener {
+                positiveButton.isEnabled = false
+                positiveButton.text = "Processing..."
+                
+                if (hasSmsPermission()) {
+                    viewModel.prepareSmsPayment(receiverId, amount)
+                } else {
+                    pendingPhone = receiverId
+                    pendingAmount = amount
+                    requestPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                }
+                
+                paymentDialog?.dismiss()
+            }
+        }
+        paymentDialog?.show()
+    }
 
-    private fun sendSmsInternal(phone: String, payload: String) {
+    private fun sendSmsInternal(phone: String, amount: Double, payload: String) {
         try {
             val smsManager = requireContext().getSystemService(SmsManager::class.java)
             smsManager.sendTextMessage(phone, null, payload, null, null)
-            Toast.makeText(requireContext(), "Payment SMS sent to $phone", Toast.LENGTH_SHORT).show()
+            
+            // Assuming success because we didn't get an exception
+            viewModel.completeSmsPayment(phone, amount, payload)
+        } catch (e: SecurityException) {
+            viewModel.abortSmsPayment("SMS permission denied")
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Failed to send SMS: ${e.message}", Toast.LENGTH_SHORT).show()
+            viewModel.abortSmsPayment("Failed to send SMS: ${e.message}")
         }
+    }
+
+    private fun showSuccessDialog(transactionId: String) {
+        paymentDialog?.dismiss()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Payment SMS Sent")
+            .setMessage("Transaction recorded.\nTransaction ID: $transactionId")
+            .setCancelable(false)
+            .setPositiveButton("DONE", null)
+            .show()
+    }
+
+    private fun showErrorDialog(message: String) {
+        paymentDialog?.dismiss()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Payment Failed")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun hasSmsPermission(): Boolean {

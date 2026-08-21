@@ -4,7 +4,18 @@ import java.math.BigDecimal
 
 data class RegisterRequestDto(
     val username: String,
-    val password: String
+    val password: String,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val mobileNumber: String? = null,
+    val email: String? = null,
+    val dateOfBirth: String? = null,
+    val addressLine1: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val pinCode: String? = null,
+    val kycDocumentType: String? = null,
+    val kycDocumentNumber: String? = null
 )
 
 data class RegisterResponseDto(

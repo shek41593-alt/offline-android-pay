@@ -4,6 +4,7 @@ import com.lastmilebanking.app.data.network.api.LastMileApiService
 import com.lastmilebanking.app.data.network.auth.SessionManager
 import com.lastmilebanking.app.data.network.auth.TokenStorage
 import com.lastmilebanking.app.data.network.dto.LoginRequestDto
+import com.lastmilebanking.app.data.network.dto.RegisterRequestDto
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +37,43 @@ class AuthenticationRepository @Inject constructor(
                     userRepository.seedDemoUserIfNeeded()
                     return true
                 }
+            }
+            false
+        }
+    }
+
+    suspend fun register(
+        firstName: String, lastName: String, 
+        mobileNumber: String, password: String, 
+        email: String, dob: String, 
+        addressLine: String, city: String, 
+        state: String, pinCode: String
+    ): Boolean {
+        return try {
+            val request = RegisterRequestDto(
+                username = mobileNumber,
+                firstName = firstName,
+                lastName = lastName,
+                mobileNumber = mobileNumber,
+                password = password,
+                email = email,
+                dateOfBirth = dob, // If the backend requires a specific format, we pass it dynamically
+                addressLine1 = addressLine,
+                city = city,
+                state = state,
+                pinCode = pinCode,
+                kycDocumentType = "AADHAAR",
+                kycDocumentNumber = "000000000000"
+            )
+            val response = api.register(request)
+            if (response.isSuccessful && response.body() != null) {
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            if (com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED) {
+                return true
             }
             false
         }

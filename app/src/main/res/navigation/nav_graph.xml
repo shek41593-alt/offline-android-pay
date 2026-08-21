@@ -11,22 +11,25 @@
         android:label="Splash"
         tools:layout="@layout/fragment_splash" >
         <action
-            android:id="@+id/action_splash_to_onboarding"
-            app:destination="@id/onboardingFragment"
+            android:id="@+id/action_splash_to_landing"
+            app:destination="@id/landingFragment"
+            app:popUpTo="@id/splashFragment"
+            app:popUpToInclusive="true"/>
+        <action
+            android:id="@+id/action_splash_to_home"
+            app:destination="@id/homeFragment"
             app:popUpTo="@id/splashFragment"
             app:popUpToInclusive="true"/>
     </fragment>
 
     <fragment
-        android:id="@+id/onboardingFragment"
-        android:name="com.lastmilebanking.app.features.onboarding.OnboardingFragment"
-        android:label="Onboarding"
-        tools:layout="@layout/fragment_onboarding" >
+        android:id="@+id/landingFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.LandingFragment"
+        android:label="Landing"
+        tools:layout="@layout/fragment_landing" >
         <action
-            android:id="@+id/action_onboarding_to_login"
-            app:destination="@id/loginFragment"
-            app:popUpTo="@id/onboardingFragment"
-            app:popUpToInclusive="true"/>
+            android:id="@+id/action_landing_to_login"
+            app:destination="@id/loginFragment" />
     </fragment>
 
     <fragment
@@ -45,9 +48,57 @@
         android:label="OTP"
         tools:layout="@layout/fragment_otp" >
         <action
+            android:id="@+id/action_otp_to_create_password"
+            app:destination="@id/createPasswordFragment" />
+        <action
             android:id="@+id/action_otp_to_home"
             app:destination="@id/homeFragment"
             app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+    <fragment
+        android:id="@+id/createPasswordFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.CreatePasswordFragment"
+        android:label="Create Password"
+        tools:layout="@layout/fragment_create_password" >
+        <action
+            android:id="@+id/action_password_to_personal_info"
+            app:destination="@id/personalInfoFragment" />
+        <action
+            android:id="@+id/action_password_to_sync"
+            app:destination="@id/syncProgressFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/personalInfoFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.PersonalInfoFragment"
+        android:label="Personal Info"
+        tools:layout="@layout/fragment_personal_info" >
+        <action
+            android:id="@+id/action_personal_to_address"
+            app:destination="@id/addressFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addressFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.AddressFragment"
+        android:label="Address"
+        tools:layout="@layout/fragment_address" >
+        <action
+            android:id="@+id/action_address_to_sync"
+            app:destination="@id/syncProgressFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/syncProgressFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.SyncProgressFragment"
+        android:label="Creating Account"
+        tools:layout="@layout/fragment_sync_progress" >
+        <action
+            android:id="@+id/action_sync_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/landingFragment"
             app:popUpToInclusive="true"/>
     </fragment>
     
@@ -84,23 +135,5 @@
         android:name="com.lastmilebanking.app.features.payments.SmsPayFragment"
         android:label="SMS Pay"
         tools:layout="@layout/fragment_sms_pay" />
-
-    <fragment
-        android:id="@+id/historyFragment"
-        android:name="com.lastmilebanking.app.features.history.HistoryFragment"
-        android:label="History"
-        tools:layout="@layout/fragment_history" />
-
-    <fragment
-        android:id="@+id/walletFragment"
-        android:name="com.lastmilebanking.app.features.wallet.WalletFragment"
-        android:label="Wallet"
-        tools:layout="@layout/fragment_wallet" />
-
-    <fragment
-        android:id="@+id/profileFragment"
-        android:name="com.lastmilebanking.app.features.profile.ProfileFragment"
-        android:label="Profile"
-        tools:layout="@layout/fragment_profile" />
 
 </navigation>

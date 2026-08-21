@@ -18,7 +18,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
         android:layout_marginTop="24dp"
-        android:text="Sign In"
+        android:text="Personal Information"
         android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="?attr/colorOnBackground"
@@ -26,74 +26,46 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilEmail"
+        android:id="@+id/tilFullName"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
         android:layout_marginTop="32dp"
-        android:hint="Email">
+        android:hint="Full Name">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etEmail"
+            android:id="@+id/etFullName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textEmailAddress" />
+            android:inputType="textPersonName" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <LinearLayout
-        android:id="@+id/phoneLayout"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilDob"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:baselineAligned="false"
         android:layout_marginHorizontal="24dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/tilEmail">
+        android:hint="Date of Birth (DD/MM/YYYY)">
 
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="80dp"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etDob"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etCountryCode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="+91"
-                android:enabled="false"
-                android:textStyle="bold"
-                android:gravity="center" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilPhone"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="Phone Number">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPhone"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="phone"
-                android:maxLength="10" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-    </LinearLayout>
+            android:inputType="date" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnSendOtp"
+        android:id="@+id/btnContinue"
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="32dp"
-        android:text="SEND OTP"
+        android:layout_marginBottom="32dp"
+        android:text="CONTINUE"
         android:textSize="18sp"
         app:cornerRadius="16dp"
-        app:layout_constraintTop_toBottomOf="@id/phoneLayout" />
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

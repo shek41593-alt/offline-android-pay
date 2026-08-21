@@ -104,6 +104,11 @@ dependencies {
     implementation("androidx.hilt:hilt-work:1.1.0")
     kapt("androidx.hilt:hilt-compiler:1.1.0")
 
+    // Appwrite SDK includes okhttp-bom which causes a variant matching failure ('platform vs library') in AGP 8+
+    implementation("io.appwrite:sdk-for-android:5.0.0") {
+        exclude(group = "com.squareup.okhttp3", module = "okhttp-bom")
+    }
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
@@ -116,6 +121,8 @@ configurations.all {
         force("androidx.core:core-ktx:1.10.1")
         force("androidx.activity:activity:1.7.2")
         force("androidx.activity:activity-ktx:1.7.2")
+        force("com.squareup.okhttp3:okhttp:4.12.0")
+        force("com.squareup.okhttp3:logging-interceptor:4.12.0")
     }
 }
 

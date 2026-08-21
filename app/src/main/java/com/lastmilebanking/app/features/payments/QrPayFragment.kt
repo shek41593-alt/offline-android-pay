@@ -1,22 +1,26 @@
 package com.lastmilebanking.app.features.payments
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.material.button.MaterialButton
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.zxing.ResultPoint
+import com.journeyapps.barcodescanner.BarcodeCallback
+import com.journeyapps.barcodescanner.BarcodeResult
+import com.journeyapps.barcodescanner.DecoratedBarcodeView
 import com.lastmilebanking.app.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -25,25 +29,21 @@ import kotlinx.coroutines.launch
 class QrPayFragment : Fragment() {
 
     private val viewModel: QrPayViewModel by viewModels()
-
-    private val barcodeLauncher = registerForActivityResult(ScanContract()) { result ->
-        if (result.contents == null) {
-            Toast.makeText(requireContext(), "Cancelled", Toast.LENGTH_LONG).show()
-        } else {
-            viewModel.onScanResult(result.contents)
-        }
-    }
+    private lateinit var barcodeScannerView: DecoratedBarcodeView
+    private var isProcessing = false
+    private var paymentDialog: AlertDialog? = null
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                launchScanner()
+                barcodeScannerView.resume()
             } else {
                 Toast.makeText(
                     requireContext(),
                     "Camera permission is required to scan QR codes",
                     Toast.LENGTH_LONG
                 ).show()
+                findNavController().popBackStack()
             }
         }
 
@@ -57,21 +57,29 @@ class QrPayFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // Retain generating the offline dummy QR for demonstration, but allow real scanning
-        val qrImageView: ImageView = view.findViewById(R.id.ivQrCode)
-        try {
-            val barcodeEncoder = com.journeyapps.barcodescanner.BarcodeEncoder()
-            val offlinePayload = "LMB:OFFLINE_TXN:UID1234:SECURE_HASH:500.00"
-            val bitmap = barcodeEncoder.encodeBitmap(offlinePayload, com.google.zxing.BarcodeFormat.QR_CODE, 600, 600)
-            qrImageView.setImageBitmap(bitmap)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        barcodeScannerView = view.findViewById(R.id.barcodeScannerView)
+        
+        val toolbar: MaterialToolbar = view.findViewById(R.id.toolbar)
+        toolbar.setNavigationOnClickListener {
+            findNavController().popBackStack()
         }
 
-        view.findViewById<MaterialButton>(R.id.btnScanQr).setOnClickListener {
-            // First check camera permission
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        view.findViewById<View>(R.id.btnCancel).setOnClickListener {
+            findNavController().popBackStack()
         }
+
+        checkCameraPermission()
+
+        barcodeScannerView.decodeContinuous(object : BarcodeCallback {
+            override fun barcodeResult(result: BarcodeResult?) {
+                if (result?.text != null && !isProcessing) {
+                    isProcessing = true
+                    barcodeScannerView.pause()
+                    viewModel.onScanResult(result.text)
+                }
+            }
+            override fun possibleResultPoints(resultPoints: MutableList<ResultPoint>?) {}
+        })
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -82,15 +90,17 @@ class QrPayFragment : Fragment() {
                             viewModel.resetState()
                         }
                         is QrPayState.Success -> {
-                            Toast.makeText(requireContext(), "Transaction Successful! ID: ${state.transactionId}", Toast.LENGTH_LONG).show()
+                            isProcessing = false
+                            showSuccessDialog(state.transactionId)
                             viewModel.resetState()
                         }
                         is QrPayState.Error -> {
-                            Toast.makeText(requireContext(), "Error: ${state.message}", Toast.LENGTH_LONG).show()
+                            isProcessing = false
+                            showErrorDialog(state.message)
                             viewModel.resetState()
                         }
                         is QrPayState.Loading -> {
-                            // Show loader if needed
+                            // Handled by disabling button in the dialog
                         }
                         else -> { }
                     }
@@ -99,26 +109,76 @@ class QrPayFragment : Fragment() {
         }
     }
 
-    private fun launchScanner() {
-        val options = ScanOptions()
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        options.setPrompt("Scan a Merchant QR Code")
-        options.setCameraId(0) // Use a specific camera of the device
-        options.setBeepEnabled(false)
-        options.setBarcodeImageEnabled(false)
-        barcodeLauncher.launch(options)
+    private fun checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {
+            barcodeScannerView.resume()
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {
+            barcodeScannerView.resume()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        barcodeScannerView.pause()
     }
 
     private fun showConfirmationDialog(receiverId: String, amount: Double) {
-        AlertDialog.Builder(requireContext())
+        val builder = AlertDialog.Builder(requireContext())
             .setTitle("Confirm Payment")
             .setMessage("Pay $$amount to recipient $receiverId?")
-            .setPositiveButton("Confirm Payment") { dialog, _ ->
-                viewModel.processQrPayment(receiverId, amount)
-                dialog.dismiss()
-            }
+            .setCancelable(false)
+            .setPositiveButton("Confirm Payment", null) // Set to null first to override click block
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
+                isProcessing = false
+                barcodeScannerView.resume()
+            }
+        
+        paymentDialog = builder.create()
+        paymentDialog?.setOnShowListener {
+            val positiveButton = paymentDialog?.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton?.setOnClickListener {
+                positiveButton.isEnabled = false // prevent double click
+                positiveButton.text = "Processing..."
+                viewModel.processQrPayment(receiverId, amount)
+            }
+        }
+        paymentDialog?.show()
+    }
+
+    private fun showSuccessDialog(transactionId: String) {
+        paymentDialog?.dismiss()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Payment Successful")
+            .setMessage("Transaction completed.\nTransaction ID: $transactionId")
+            .setCancelable(false)
+            .setPositiveButton("DONE") { _, _ ->
+                findNavController().popBackStack()
+            }
+            .show()
+    }
+
+    private fun showErrorDialog(message: String) {
+        paymentDialog?.dismiss()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Payment Failed")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("TRY AGAIN") { _, _ ->
+                isProcessing = false
+                barcodeScannerView.resume()
+            }
+            .setNegativeButton("BACK") { _, _ ->
+                findNavController().popBackStack()
             }
             .show()
     }

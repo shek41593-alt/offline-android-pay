@@ -30,6 +30,19 @@
         <action
             android:id="@+id/action_landing_to_login"
             app:destination="@id/loginFragment" />
+        <action
+            android:id="@+id/action_landing_to_authChoice"
+            app:destination="@id/authChoiceFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/authChoiceFragment"
+        android:name="com.lastmilebanking.app.features.onboarding.AuthChoiceFragment"
+        android:label="Auth Choice"
+        tools:layout="@layout/fragment_auth_choice" >
+        <action
+            android:id="@+id/action_authChoice_to_login"
+            app:destination="@id/loginFragment" />
     </fragment>
 
     <fragment

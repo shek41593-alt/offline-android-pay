@@ -6,13 +6,11 @@
     android:background="?android:attr/colorBackground"
     android:padding="24dp">
 
-    <ImageView
-        android:id="@+id/ivLogo"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:src="@drawable/ic_wallet"
-        app:tint="?attr/colorPrimary"
-        android:layout_marginTop="32dp"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:navigationIcon="@drawable/abc_ic_ab_back_material"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -22,59 +20,46 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:text="LastMile Banking"
+        android:text="Welcome"
         android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="?attr/colorOnBackground"
-        app:layout_constraintTop_toBottomOf="@id/ivLogo"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/tvSubtitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Banking beyond the internet"
-        android:textSize="18sp"
-        android:gravity="center"
-        android:textColor="?attr/colorPrimary"
+        android:text="Choose how you want to continue."
+        android:textSize="16sp"
+        android:textColor="?attr/colorOnSurface"
         app:layout_constraintTop_toBottomOf="@id/tvWelcome"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
-        android:id="@+id/tvDescription"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Secure digital payments using:\n\nQR   •   SMS   •   Bluetooth"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnGetStarted"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginBottom="16dp"
-        android:text="GET STARTED"
-        android:textSize="16sp"
-        app:cornerRadius="12dp"
-        app:layout_constraintBottom_toTopOf="@id/btnSignIn" />
-
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSignIn"
-        style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
         android:layout_height="52dp"
-        android:layout_marginBottom="16dp"
-        android:text="Already have an account? Sign In"
-        android:textSize="14sp"
+        android:layout_marginTop="48dp"
+        android:text="Sign In"
+        android:textSize="16sp"
         app:cornerRadius="12dp"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:iconGravity="textStart"
+        app:layout_constraintTop_toBottomOf="@id/tvSubtitle" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCreateAccount"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="16dp"
+        android:text="Create Account"
+        android:textSize="16sp"
+        app:cornerRadius="12dp"
+        app:iconGravity="textStart"
+        app:layout_constraintTop_toBottomOf="@id/btnSignIn" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

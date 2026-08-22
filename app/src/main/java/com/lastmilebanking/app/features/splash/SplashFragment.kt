@@ -37,19 +37,23 @@ class SplashFragment : Fragment() {
                     when (state) {
                         is AuthState.Authenticated -> {
                             val navController = androidx.navigation.Navigation.findNavController(requireView())
-                            navController.navigate(
-                                R.id.action_splash_to_home,
-                                null,
-                                androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
-                            )
+                            if (navController.currentDestination?.id == R.id.splashFragment) {
+                                navController.navigate(
+                                    R.id.action_splash_to_home,
+                                    null,
+                                    androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
+                                )
+                            }
                         }
                         is AuthState.Unauthenticated -> {
                             val navController = androidx.navigation.Navigation.findNavController(requireView())
-                            navController.navigate(
-                                R.id.action_splash_to_landing,
-                                null,
-                                androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
-                            )
+                            if (navController.currentDestination?.id == R.id.splashFragment) {
+                                navController.navigate(
+                                    R.id.action_splash_to_landing,
+                                    null,
+                                    androidx.navigation.NavOptions.Builder().setPopUpTo(R.id.splashFragment, true).build()
+                                )
+                            }
                         }
                         is AuthState.Checking -> {
                             // Wait

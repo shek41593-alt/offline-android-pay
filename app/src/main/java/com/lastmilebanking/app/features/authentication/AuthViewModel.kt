@@ -67,11 +67,7 @@ class AuthViewModel @Inject constructor(
                 appwriteUserId = token.userId
                 _loginState.value = LoginState.OtpSent
             } catch (e: Exception) {
-                if (com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED && _phoneNumber.value == "+919876543210") {
-                    _loginState.value = LoginState.OtpSent
-                } else {
-                    _loginState.value = LoginState.Error(e.message ?: "Failed to send OTP")
-                }
+                _loginState.value = LoginState.Error(e.message ?: "Failed to send OTP")
             }
         }
     }
@@ -91,15 +87,7 @@ class AuthViewModel @Inject constructor(
                     _loginState.value = LoginState.VerifiedContinue
                 }
             } catch (e: Exception) {
-                if (com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED && otp == "123456") {
-                    if (isLoginFlow) {
-                        _loginState.value = LoginState.RequiresPassword
-                    } else {
-                        _loginState.value = LoginState.VerifiedContinue
-                    }
-                } else {
-                    _loginState.value = LoginState.Error("Invalid OTP")
-                }
+                _loginState.value = LoginState.Error("Invalid OTP")
             }
         }
     }
@@ -121,7 +109,7 @@ class AuthViewModel @Inject constructor(
                         firstName, lastName, normalizedPhone, password, 
                         _email.value, dateOfBirth, addressLine, city, state, pinCode
                     )
-                    if (!success && !com.lastmilebanking.app.BuildConfig.DEV_AUTH_FALLBACK_ENABLED) {
+                    if (!success) {
                         _loginState.value = LoginState.Error("Backend Registration Failed")
                         return@launch
                     }

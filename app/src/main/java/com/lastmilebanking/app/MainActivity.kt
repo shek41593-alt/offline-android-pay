@@ -26,26 +26,22 @@ class MainActivity : AppCompatActivity() {
         
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                R.id.splashFragment,
-                R.id.landingFragment,
-                R.id.loginFragment,
-                R.id.otpFragment,
-                R.id.createPasswordFragment,
-                R.id.personalInfoFragment,
-                R.id.addressFragment,
-                R.id.syncProgressFragment -> {
-                    bottomNavView.visibility = View.GONE
+                R.id.homeFragment,
+                R.id.walletFragment,
+                R.id.historyFragment,
+                R.id.profileFragment -> {
+                    bottomNavView.visibility = View.VISIBLE
                 }
                 else -> {
-                    bottomNavView.visibility = View.VISIBLE
+                    bottomNavView.visibility = View.GONE
                 }
             }
         }
 
         lifecycleScope.launchWhenStarted {
             sessionManager.unauthorizedEvent.collect {
-                // Navigate to login, clearing backstack
-                navController.navigate(R.id.loginFragment, null, 
+                // Navigate to landing, clearing backstack
+                navController.navigate(R.id.landingFragment, null, 
                     androidx.navigation.NavOptions.Builder()
                         .setPopUpTo(navController.graph.id, true)
                         .build()

@@ -21,5 +21,10 @@
         <!-- Status Bar -->
         <item name="android:statusBarColor">?attr/colorSurface</item>
         <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Components -->
+        <item name="materialButtonStyle">@style/Widget.LastMile.Button</item>
+        <item name="textInputStyle">@style/Widget.LastMile.TextInputLayout</item>
+        <item name="editTextStyle">@style/Widget.LastMile.TextInputEditText</item>
     </style>
 </resources>

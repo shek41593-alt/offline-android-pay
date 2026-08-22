@@ -27,10 +27,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
             android:text="LastMile Banking"
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnBackground"
+            android:gravity="center"
             app:layout_constraintTop_toBottomOf="@id/ivLogo"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />

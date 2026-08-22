@@ -10,6 +10,12 @@ import io.appwrite.Client
 import io.appwrite.services.Account
 import javax.inject.Singleton
 
+object AppwriteConfig {
+    const val PROJECT_ID = "6a8984d00013474ae520"
+    const val PROJECT_NAME = "Last Mile Banking"
+    const val ENDPOINT = "https://fra.cloud.appwrite.io/v1"
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object AppwriteModule {
@@ -18,8 +24,8 @@ object AppwriteModule {
     @Singleton
     fun provideAppwriteClient(@ApplicationContext context: Context): Client {
         return Client(context)
-            .setEndpoint("https://cloud.appwrite.io/v1") // Ensure this represents a standard endpoint
-            .setProject("APPWRITE_PROJECT_ID_PLACEHOLDER") // Actual config pending from manifest or buildConfig
+            .setEndpoint(AppwriteConfig.ENDPOINT)
+            .setProject(AppwriteConfig.PROJECT_ID)
     }
 
     @Provides

@@ -19,7 +19,7 @@ class LandingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         view.findViewById<MaterialButton>(R.id.btnGetStarted).setOnClickListener {
-            findNavController().navigate(R.id.action_landing_to_authChoice)
+            findNavController().navigate(R.id.action_landing_to_onboarding)
         }
 
         view.findViewById<MaterialButton>(R.id.btnSignIn).setOnClickListener {

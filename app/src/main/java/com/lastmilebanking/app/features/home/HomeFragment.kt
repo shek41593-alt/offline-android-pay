@@ -44,7 +44,10 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        transactionAdapter = TransactionAdapter()
+        transactionAdapter = TransactionAdapter { transactionId ->
+            val bundle = android.os.Bundle().apply { putString("transactionId", transactionId) }
+            androidx.navigation.Navigation.findNavController(requireView()).navigate(R.id.action_home_to_transactionDetails, bundle)
+        }
         binding.rvTransactions.apply {
             adapter = transactionAdapter
             layoutManager = LinearLayoutManager(requireContext())

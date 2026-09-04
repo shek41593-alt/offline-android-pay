@@ -36,6 +36,13 @@ class HomeViewModel @Inject constructor(
             userRepository.getActiveUser()
                 .filterNotNull()
                 .flatMapLatest { user ->
+                    // Trigger backend refresh so the real backend is authoritative
+                    try {
+                        walletRepository.refreshWalletFromBackend(user.userId)
+                    } catch (e: Exception) {
+                        // ignore network failure specifically here if offline, rely on existing Room data
+                    }
+                    
                     walletRepository.getWalletByUserId(user.userId)
                         .filterNotNull()
                         .flatMapLatest { wallet ->

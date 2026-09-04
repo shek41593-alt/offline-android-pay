@@ -13,7 +13,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-class TransactionAdapter : ListAdapter<TransactionEntity, TransactionAdapter.ViewHolder>(DIFF_CALLBACK) {
+class TransactionAdapter(private val onClick: (String) -> Unit = {}) : ListAdapter<TransactionEntity, TransactionAdapter.ViewHolder>(DIFF_CALLBACK) {
 
     private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
     private val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
@@ -22,8 +22,13 @@ class TransactionAdapter : ListAdapter<TransactionEntity, TransactionAdapter.Vie
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(transaction: TransactionEntity) {
-            binding.tvReceiverName.text = transaction.receiverName.ifBlank { "Unknown" }
-            binding.tvPaymentMode.text = transaction.paymentMode
+            if (transaction.paymentMode == "WALLET_FUNDING") {
+                binding.tvReceiverName.text = "Development Test Funding"
+                binding.tvPaymentMode.text = "Add Money"
+            } else {
+                binding.tvReceiverName.text = transaction.receiverName.ifBlank { "Unknown" }
+                binding.tvPaymentMode.text = transaction.paymentMode
+            }
 
             val isCredit = transaction.transactionType == "RECEIVE" || transaction.transactionType == "TOPUP"
             val amountText = if (isCredit) {
@@ -56,9 +61,13 @@ class TransactionAdapter : ListAdapter<TransactionEntity, TransactionAdapter.Vie
                 "QR" -> R.drawable.ic_qr_code
                 "BLUETOOTH" -> R.drawable.ic_bluetooth
                 "SMS" -> R.drawable.ic_sms
+                "WALLET_FUNDING" -> R.drawable.ic_payment
                 else -> R.drawable.ic_payment
             }
             binding.ivPaymentMode.setImageResource(iconRes)
+            binding.root.setOnClickListener {
+                onClick(transaction.transactionId)
+            }
         }
     }
 

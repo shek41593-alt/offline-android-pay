@@ -170,10 +170,15 @@ class FakeTransactionDao : TransactionDao {
         return transactions.values.filter { !it.isSynced && it.status == TransactionStatus.PENDING_SYNC.name }.take(limit)
     }
     
-    override fun getTransactionsByWallet(walletId: String) = throw NotImplementedError()
-    override fun getRecentTransactions(walletId: String, limit: Int) = throw NotImplementedError()
+    override fun getTransactionsByWallet(walletId: String) = kotlinx.coroutines.flow.flowOf<List<TransactionEntity>>()
+    override fun getRecentTransactions(walletId: String, limit: Int) = kotlinx.coroutines.flow.flowOf<List<TransactionEntity>>()
     override suspend fun getTransactionById(id: String) = transactions[id]
-    override fun getPendingCount(walletId: String) = throw NotImplementedError()
+    override fun getPendingCount(walletId: String) = kotlinx.coroutines.flow.flowOf(0)
+    
+    override suspend fun getTransactionByClientOperationId(clientOperationId: String): TransactionEntity? = null
+    override suspend fun updateTransactionStatus(id: String, status: String) {}
+    override suspend fun updateSyncResult(id: String, status: String, syncedAt: Long?) {}
+    override fun getTransactionHistory(walletId: String) = kotlinx.coroutines.flow.flowOf<List<TransactionEntity>>()
 }
 
 class FakeLastMileApiService : LastMileApiService {

@@ -15,6 +15,9 @@ interface WalletDao {
     @Query("SELECT * FROM wallet WHERE userId = :userId")
     fun getWalletByUserId(userId: String): Flow<WalletEntity?>
 
+    @Query("DELETE FROM wallet WHERE userId = :userId AND walletId != :walletId")
+    suspend fun clearOldWallets(userId: String, walletId: String)
+
     @Query("SELECT * FROM wallet WHERE walletId = :walletId")
     suspend fun getWalletById(walletId: String): WalletEntity?
 

@@ -14,5 +14,6 @@ data class UserEntity(
     val bankName: String,
     val kycStatus: String = "PENDING",  // PENDING, VERIFIED
     val createdAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val publicPaymentId: String? = null
 )

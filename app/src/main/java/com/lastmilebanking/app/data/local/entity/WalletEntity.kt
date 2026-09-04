@@ -14,7 +14,7 @@ import androidx.room.Index
         childColumns = ["userId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("userId")]
+    indices = [Index(value = ["userId"], unique = true)]
 )
 data class WalletEntity(
     @PrimaryKey

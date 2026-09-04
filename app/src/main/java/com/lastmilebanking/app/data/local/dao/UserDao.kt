@@ -23,4 +23,10 @@ interface UserDao {
 
     @Query("DELETE FROM users WHERE userId = :userId")
     suspend fun deleteUser(userId: String)
+
+    @Query("UPDATE users SET isActive = 0")
+    suspend fun clearActiveUsers()
+
+    @Query("UPDATE users SET isActive = 1 WHERE userId = :userId")
+    suspend fun setActiveUser(userId: String)
 }

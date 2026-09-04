@@ -40,21 +40,21 @@ class OTPFragment : Fragment() {
 
         val etOtp = view.findViewById<TextInputEditText>(R.id.etOtp)
         val btnVerifyOtp = view.findViewById<MaterialButton>(R.id.btnVerifyOtp)
-        val btnResendOtp = view.findViewById<TextView>(R.id.btnResendOtp)
+        
+        view.findViewById<MaterialButton>(R.id.btnCopyOtp).setOnClickListener {
+            val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("OTP", "123456")
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(requireContext(), "OTP copied", Toast.LENGTH_SHORT).show()
+        }
 
         btnVerifyOtp.setOnClickListener {
             val otp = etOtp.text.toString().trim()
-            if (otp.length < 6) { // Appwrite usually uses 6 digit code
+            if (otp.length < 6) {
                 Toast.makeText(requireContext(), "Enter valid 6-digit OTP", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             viewModel.verifyOtp(otp)
-        }
-
-        btnResendOtp.setOnClickListener {
-            etOtp.text?.clear()
-            viewModel.requestOtp()
-            Toast.makeText(requireContext(), "OTP Resent", Toast.LENGTH_SHORT).show()
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -65,24 +65,20 @@ class OTPFragment : Fragment() {
                             btnVerifyOtp.isEnabled = false
                             btnVerifyOtp.text = "Verifying..."
                         }
-                        is LoginState.VerifiedContinue -> {
+                        is LoginState.RequiresRegistration -> {
                             btnVerifyOtp.isEnabled = true
                             btnVerifyOtp.text = "VERIFY OTP"
                             viewModel.resetState()
                             findNavController().navigate(R.id.action_otp_to_create_password)
                         }
-                        is LoginState.RequiresPassword -> {
+                        is LoginState.ExistingUserAuthenticated -> {
                             btnVerifyOtp.isEnabled = true
                             btnVerifyOtp.text = "VERIFY OTP"
                             viewModel.resetState()
-                            // If sign in flows require password, go to password screen
-                            findNavController().navigate(R.id.action_otp_to_create_password)
-                        }
-                        is LoginState.Success -> {
-                            btnVerifyOtp.isEnabled = true
-                            btnVerifyOtp.text = "VERIFY OTP"
-                            viewModel.resetState()
-                            findNavController().navigate(R.id.action_otp_to_home)
+                            val navController = findNavController()
+                            if (navController.currentDestination?.id == R.id.otpFragment) {
+                                navController.navigate(R.id.action_otp_to_home)
+                            }
                         }
                         is LoginState.Error -> {
                             btnVerifyOtp.isEnabled = true

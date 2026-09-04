@@ -44,6 +44,7 @@ class AuthenticationEngineImpl @Inject constructor(
             }
 
             userRepository.createUser(
+                userId = java.util.UUID.randomUUID().toString(),
                 name = name,
                 phoneNumber = phone,
                 accountNumber = details["accountNumber"] ?: "1000000000",

@@ -71,7 +71,10 @@ class LoginFragment : Fragment() {
                             btnSendOtp.isEnabled = true
                             btnSendOtp.text = "SEND OTP"
                             viewModel.resetState()
-                            findNavController().navigate(R.id.action_login_to_otp)
+                            val navController = findNavController()
+                            if (navController.currentDestination?.id == R.id.loginFragment) {
+                                navController.navigate(R.id.action_login_to_otp)
+                            }
                         }
                         is LoginState.Error -> {
                             btnSendOtp.isEnabled = true

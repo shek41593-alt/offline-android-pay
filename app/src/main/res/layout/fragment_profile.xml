@@ -119,6 +119,22 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="Payment ID"
+                    android:textSize="12sp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+                <TextView
+                    android:id="@+id/tvPaymentId"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Loading..."
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textIsSelectable="true"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="Account Status"
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
@@ -180,17 +196,26 @@
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnLogout"
+            android:id="@+id/btnMyQr"
             style="?attr/materialButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
+            android:text="SHOW MY QR"
+            app:layout_constraintTop_toBottomOf="@id/cvDetails" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogout"
+            style="?attr/materialButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:layout_marginBottom="32dp"
             android:text="LOG OUT"
             app:backgroundTint="#FFEBEE"
             android:textColor="#D32F2F"
             app:layout_constraintVertical_bias="1.0"
-            app:layout_constraintTop_toBottomOf="@id/cvDetails"
+            app:layout_constraintTop_toBottomOf="@id/btnMyQr"
             app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

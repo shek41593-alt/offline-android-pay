@@ -4,8 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastmilebanking.app.data.repository.AuthenticationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.appwrite.services.Account
-import io.appwrite.ID
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -13,8 +12,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthenticationRepository,
-    private val appwriteAccount: Account
+    private val authRepository: AuthenticationRepository
 ) : ViewModel() {
 
     private val _phoneNumber = MutableStateFlow("")
@@ -36,7 +34,6 @@ class AuthViewModel @Inject constructor(
     val loginState = _loginState.asStateFlow()
     
     var isLoginFlow = true
-    var appwriteUserId = ""
 
     fun setPhoneNumberAndEmail(phone: String, emailAddr: String) {
         _phoneNumber.value = phone
@@ -59,13 +56,30 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
             try {
-                // Appwrite 5.0.0 Phone Auth
-                val token = appwriteAccount.createPhoneToken(
-                    userId = ID.unique(),
-                    phone = _phoneNumber.value
-                )
-                appwriteUserId = token.userId
+                val normalizedPhone = _phoneNumber.value.replace("+91", "")
+                val userExists = authRepository.checkUser(normalizedPhone)
+                
+                if (isLoginFlow) {
+                    if (!userExists) {
+                        _loginState.value = LoginState.Error("Account not found. Please register.")
+                        return@launch
+                    }
+                } else {
+                    if (userExists) {
+                        _loginState.value = LoginState.Error("Account already exists. Please sign in.")
+                        return@launch
+                    }
+                }
+                
                 _loginState.value = LoginState.OtpSent
+            } catch (e: retrofit2.HttpException) {
+                if (e.code() in 500..599) {
+                    _loginState.value = LoginState.Error("Server error. Please try again.")
+                } else {
+                    _loginState.value = LoginState.Error("Unable to connect to server.")
+                }
+            } catch (e: java.io.IOException) {
+                _loginState.value = LoginState.Error("Unable to connect to server.")
             } catch (e: Exception) {
                 _loginState.value = LoginState.Error(e.message ?: "Failed to send OTP")
             }
@@ -76,18 +90,13 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
             try {
-                appwriteAccount.updatePhoneSession(
-                    userId = appwriteUserId,
-                    secret = otp
-                )
-                
-                if (isLoginFlow) {
-                    _loginState.value = LoginState.RequiresPassword // Must prompt for password to authenticate via backend
+                if (otp == "123456") {
+                    _loginState.value = LoginState.RequiresRegistration
                 } else {
-                    _loginState.value = LoginState.VerifiedContinue
+                    _loginState.value = LoginState.Error("Invalid OTP. Please enter 123456.")
                 }
             } catch (e: Exception) {
-                _loginState.value = LoginState.Error("Invalid OTP")
+                _loginState.value = LoginState.Error("Invalid OTP. Please enter 123456.")
             }
         }
     }
@@ -105,25 +114,58 @@ class AuthViewModel @Inject constructor(
             try {
                 if (!isLoginFlow) {
                     // Registration
-                    val success = authRepository.register(
+                    when (val result = authRepository.register(
                         firstName, lastName, normalizedPhone, password, 
                         _email.value, dateOfBirth, addressLine, city, state, pinCode
-                    )
-                    if (!success) {
-                        _loginState.value = LoginState.Error("Backend Registration Failed")
-                        return@launch
+                    )) {
+                        is com.lastmilebanking.app.data.repository.RegistrationResult.Success -> {
+                            // Proceed to login below
+                        }
+                        is com.lastmilebanking.app.data.repository.RegistrationResult.Conflict -> {
+                            _loginState.value = LoginState.Error("Account already exists. Please sign in instead.")
+                            return@launch
+                        }
+                        is com.lastmilebanking.app.data.repository.RegistrationResult.ValidationError -> {
+                            _loginState.value = LoginState.Error("Invalid details: ${result.message}")
+                            return@launch
+                        }
+                        is com.lastmilebanking.app.data.repository.RegistrationResult.ServerError -> {
+                            _loginState.value = LoginState.Error("Server temporarily unavailable. Please try again.")
+                            return@launch
+                        }
+                        is com.lastmilebanking.app.data.repository.RegistrationResult.NetworkError -> {
+                            _loginState.value = LoginState.Error("Unable to connect to server.")
+                            return@launch
+                        }
                     }
                 }
                 
                 // Login
                 val loginSuccess = authRepository.login(normalizedPhone, password)
                 if (loginSuccess) {
-                    _loginState.value = LoginState.Success
+                    _loginState.value = LoginState.ExistingUserAuthenticated
                 } else {
                     _loginState.value = LoginState.Error("Backend Authentication Failed")
                 }
             } catch (e: Exception) {
                 _loginState.value = LoginState.Error(e.message ?: "Failed to synchronize profile")
+            }
+        }
+    }
+
+    fun loginOnly() {
+        viewModelScope.launch {
+            _loginState.value = LoginState.Loading
+            val normalizedPhone = _phoneNumber.value.replace("+91", "")
+            try {
+                val loginSuccess = authRepository.login(normalizedPhone, password)
+                if (loginSuccess) {
+                    _loginState.value = LoginState.ExistingUserAuthenticated
+                } else {
+                    _loginState.value = LoginState.Error("Incorrect password")
+                }
+            } catch (e: Exception) {
+                _loginState.value = LoginState.Error("Network failure or server unavailable.")
             }
         }
     }
@@ -159,8 +201,7 @@ sealed class LoginState {
     object Initial : LoginState()
     object Loading : LoginState()
     object OtpSent : LoginState()
-    object VerifiedContinue : LoginState()
-    object RequiresPassword : LoginState()
-    object Success : LoginState()
+    object RequiresRegistration : LoginState() // Formerly VerifiedContinue & RequiresPassword
+    object ExistingUserAuthenticated : LoginState() // Formerly Success
     data class Error(val message: String) : LoginState()
 }

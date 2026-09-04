@@ -108,7 +108,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:hint="PIN Code">
+            android:hint="PIN Code"
+            app:layout_constraintTop_toBottomOf="@id/cityStateLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etPinCode"

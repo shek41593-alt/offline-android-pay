@@ -30,14 +30,20 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val tvEmail = view.findViewById<TextView>(R.id.tvEmail)
         val tvPhone = view.findViewById<TextView>(R.id.tvPhone)
         val tvUserId = view.findViewById<TextView>(R.id.tvUserId)
+        val tvPaymentId = view.findViewById<TextView>(R.id.tvPaymentId)
         val cvDetails = view.findViewById<MaterialCardView>(R.id.cvDetails)
         val llLoading = view.findViewById<LinearLayout>(R.id.llLoading)
         val llError = view.findViewById<LinearLayout>(R.id.llError)
         val btnRetry = view.findViewById<MaterialButton>(R.id.btnRetry)
+        val btnMyQr = view.findViewById<MaterialButton>(R.id.btnMyQr)
         val btnLogout = view.findViewById<MaterialButton>(R.id.btnLogout)
 
         btnRetry.setOnClickListener {
             viewModel.loadProfile()
+        }
+
+        btnMyQr.setOnClickListener {
+            findNavController().navigate(R.id.action_profile_to_my_qr)
         }
 
         btnLogout.setOnClickListener {
@@ -69,9 +75,9 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                             
                             tvName.text = state.name
                             tvEmail.text = state.email
-                            // ensure we have +91 prefix matching requirement if needed, otherwise use returned value
                             tvPhone.text = if (state.phone.startsWith("+")) state.phone else "+91 ${state.phone}"
                             tvUserId.text = state.userId
+                            tvPaymentId.text = state.publicPaymentId
                         }
                         is ProfileUiState.Error -> {
                             llLoading.visibility = View.GONE

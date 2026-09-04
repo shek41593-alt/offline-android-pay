@@ -104,7 +104,7 @@ class NetworkLayerTest {
         assertEquals("POST", capturedRequest?.method)
         
         api.syncTransaction(SyncTransactionRequestDto("tx", "s", "r", BigDecimal.TEN, "INR", "QR", "ts", "sig"))
-        assertEquals("http://10.43.215.250:8080/api/v1/transactions", capturedRequest?.url.toString())
+        assertEquals("http://10.43.215.250:8080/api/v1/wallet/sync", capturedRequest?.url.toString())
         assertEquals("POST", capturedRequest?.method)
         
         api.getTransactionStatus("tx-123")

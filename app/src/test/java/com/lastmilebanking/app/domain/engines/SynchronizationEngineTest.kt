@@ -180,10 +180,28 @@ class FakeLastMileApiService : LastMileApiService {
     val requests = mutableListOf<SyncTransactionRequestDto>()
     val responses = mutableMapOf<String, Response<SyncTransactionResponseDto>>()
 
+    override suspend fun getPaymentIdentity(): retrofit2.Response<com.lastmilebanking.app.data.network.dto.PaymentIdentityDto> {
+        return retrofit2.Response.success(com.lastmilebanking.app.data.network.dto.PaymentIdentityDto("user", "LMB-123"))
+    }
+    
+    override suspend fun getProfile(): retrofit2.Response<com.lastmilebanking.app.data.network.dto.UserProfileDto> {
+        return retrofit2.Response.success(com.lastmilebanking.app.data.network.dto.UserProfileDto("Name", "email", "phone", "addr"))
+    }
+
     override suspend fun register(request: com.lastmilebanking.app.data.network.dto.RegisterRequestDto) = TODO()
     override suspend fun login(request: com.lastmilebanking.app.data.network.dto.LoginRequestDto) = TODO()
+    override suspend fun checkUser(request: com.lastmilebanking.app.data.network.dto.CheckUserRequestDto) = TODO()
+    override suspend fun verifyOtp(request: com.lastmilebanking.app.data.network.dto.VerifyOtpRequestDto) = TODO()
+
     override suspend fun getTransactionStatus(transactionId: String) = TODO()
+    override suspend fun getTransactionDetail(transactionId: String) = TODO()
+    override suspend fun fundWallet(idempotencyKey: String, request: com.lastmilebanking.app.data.network.dto.FundWalletRequestDto): retrofit2.Response<com.lastmilebanking.app.data.network.dto.FundWalletResponseDto> = TODO()
     override suspend fun checkHealth() = TODO()
+
+    override suspend fun resolveRecipient(publicPaymentId: String) = TODO()
+    override suspend fun processPayment(request: com.lastmilebanking.app.data.network.dto.DirectPaymentRequestDto) = TODO()
+    override suspend fun getWalletBalance() = TODO()
+    override suspend fun getUserTransactions() = TODO()
 
     override suspend fun syncTransaction(request: SyncTransactionRequestDto): Response<SyncTransactionResponseDto> {
         requests.add(request)

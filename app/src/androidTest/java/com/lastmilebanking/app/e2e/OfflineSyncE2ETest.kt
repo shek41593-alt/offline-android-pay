@@ -35,7 +35,7 @@ class OfflineSyncE2ETest {
     private lateinit var engine: SynchronizationEngineImpl
     private lateinit var tokenStorage: TokenStorage
     
-    private val BASE_URL = "http://10.43.215.250:8080/"
+    private val BASE_URL = com.lastmilebanking.app.BuildConfig.BASE_URL
 
     @Before
     fun setup() {

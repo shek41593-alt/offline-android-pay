@@ -94,6 +94,11 @@
         <action
             android:id="@+id/action_password_to_sync"
             app:destination="@id/syncProgressFragment" />
+        <action
+            android:id="@+id/action_password_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/landingFragment"
+            app:popUpToInclusive="true"/>
     </fragment>
 
     <fragment
@@ -142,6 +147,9 @@
         <action
             android:id="@+id/action_home_to_sms"
             app:destination="@id/smsPayFragment" />
+        <action
+            android:id="@+id/action_home_to_transactionDetails"
+            app:destination="@id/transactionDetailsFragment" />
     </fragment>
 
     <fragment
@@ -165,18 +173,52 @@
         android:id="@+id/historyFragment"
         android:name="com.lastmilebanking.app.features.history.HistoryFragment"
         android:label="History"
-        tools:layout="@layout/fragment_history" />
+        tools:layout="@layout/fragment_history" >
+        <action
+            android:id="@+id/action_history_to_transactionDetails"
+            app:destination="@id/transactionDetailsFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/walletFragment"
         android:name="com.lastmilebanking.app.features.wallet.WalletFragment"
         android:label="Wallet"
-        tools:layout="@layout/fragment_wallet" />
+        tools:layout="@layout/fragment_wallet" >
+        <action
+            android:id="@+id/action_wallet_to_addMoney"
+            app:destination="@id/addMoneyFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/profileFragment"
         android:name="com.lastmilebanking.app.features.profile.ProfileFragment"
         android:label="Profile"
-        tools:layout="@layout/fragment_profile" />
+        tools:layout="@layout/fragment_profile" >
+        <action
+            android:id="@+id/action_profile_to_my_qr"
+            app:destination="@id/myQrFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/myQrFragment"
+        android:name="com.lastmilebanking.app.features.profile.MyQrFragment"
+        android:label="My QR"
+        tools:layout="@layout/fragment_my_qr" />
+
+    <fragment
+        android:id="@+id/transactionDetailsFragment"
+        android:name="com.lastmilebanking.app.features.history.TransactionDetailsFragment"
+        android:label="Receipt"
+        tools:layout="@layout/fragment_transaction_details">
+        <argument
+            android:name="transactionId"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addMoneyFragment"
+        android:name="com.lastmilebanking.app.features.wallet.AddMoneyFragment"
+        android:label="Add Money"
+        tools:layout="@layout/fragment_add_money" />
 
 </navigation>

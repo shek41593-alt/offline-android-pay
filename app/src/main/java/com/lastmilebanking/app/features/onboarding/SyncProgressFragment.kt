@@ -37,7 +37,7 @@ class SyncProgressFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.loginState.collect { state ->
                     when (state) {
-                        is LoginState.Success -> {
+                        is LoginState.ExistingUserAuthenticated -> {
                             findNavController().navigate(R.id.action_sync_to_home)
                             viewModel.resetState()
                         }

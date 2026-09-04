@@ -5,11 +5,13 @@ import com.lastmilebanking.app.data.network.auth.SessionManager
 import com.lastmilebanking.app.data.network.auth.TokenStorage
 import com.lastmilebanking.app.data.network.dto.LoginRequestDto
 import com.lastmilebanking.app.data.network.dto.RegisterRequestDto
+import android.util.Log
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-import io.appwrite.services.Account
-import io.appwrite.exceptions.AppwriteException
 
 @Singleton
 class AuthenticationRepository @Inject constructor(
@@ -17,25 +19,89 @@ class AuthenticationRepository @Inject constructor(
     private val tokenStorage: TokenStorage,
     private val sessionManager: SessionManager,
     private val userRepository: UserRepository,
-    private val appwriteAccount: Account
+    private val database: com.lastmilebanking.app.data.local.LastMileDatabase
 ) {
-    suspend fun login(phoneNumber: String, otp: String): Boolean {
+    suspend fun checkUser(phoneNumber: String): Boolean {
+        // We will throw exceptions for network/server errors so ViewModel can catch them
+        val response = api.checkUser(com.lastmilebanking.app.data.network.dto.CheckUserRequestDto(username = phoneNumber))
+        if (response.isSuccessful) {
+            return response.body()?.status == "EXISTING"
+        } else {
+            throw retrofit2.HttpException(response)
+        }
+    }
+
+    suspend fun verifyOtp(phoneNumber: String, otp: String): Boolean {
         return try {
-            val response = api.login(LoginRequestDto(username = phoneNumber, password = otp))
-            if (response.isSuccessful && response.body() != null) {
-                val token = response.body()?.accessToken
+            val response = api.verifyOtp(com.lastmilebanking.app.data.network.dto.VerifyOtpRequestDto(username = phoneNumber, otp = otp))
+            handleAuthResponse(response, phoneNumber)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Verify OTP unexpected exception: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun login(phoneNumber: String, password: String): Boolean {
+        return try {
+            val response = api.login(LoginRequestDto(username = phoneNumber, password = password))
+            handleAuthResponse(response, phoneNumber)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Login unexpected exception: ${e.message}", e)
+            false
+        }
+    }
+
+    private suspend fun handleAuthResponse(response: retrofit2.Response<com.lastmilebanking.app.data.network.dto.AuthResponseDto>, phoneNumber: String): Boolean {
+        return if (response.isSuccessful && response.body() != null) {
+            val token = response.body()?.accessToken
                 if (!token.isNullOrEmpty()) {
                     tokenStorage.saveToken(token)
+                    response.body()?.userId?.let { userId ->
+                        userRepository.setActiveUser(userId)
+                    }
+                    
+                    // Fetch Payment Identity to ensure local cache is updated on login
+                    try {
+                        val identityResponse = api.getPaymentIdentity()
+                        val profileResponse = api.getProfile()
+                        
+                        if (identityResponse.isSuccessful) {
+                            val identityUserId = identityResponse.body()?.userId
+                            val paymentId = identityResponse.body()?.publicPaymentId
+                            
+                            val profileName = profileResponse.body()?.name ?: response.body()?.username ?: "User"
+                            val profilePhone = profileResponse.body()?.phone ?: phoneNumber
+                            
+                            if (identityUserId != null && paymentId != null) {
+                                // Update or recreate the user entity in Room to restore session state if missing
+                                val existingUser = userRepository.getUserById(identityUserId)
+                                if (existingUser == null) {
+                                    userRepository.createUser(
+                                        userId = identityUserId,
+                                        name = profileName,
+                                        phoneNumber = profilePhone,
+                                        accountNumber = "12345678901234",
+                                        ifscCode = "SBIN0001234",
+                                        bankName = "State Bank",
+                                        publicPaymentId = paymentId
+                                    )
+                                } else {
+                                    // Reactivate the user here just in case they were logged out but not cleared
+                                    userRepository.setActiveUser(identityUserId)
+                                }
+                            }
+                        }
+                    } catch(e: Exception) {
+                        Log.e("AuthRepository", "Failed to get payment identity during login", e)
+                    }
                     true
                 } else {
                     false
                 }
             } else {
+                Log.e("AuthRepository", "Auth failed: ${response.code()} ${response.errorBody()?.string()}")
                 false
             }
-        } catch (e: Exception) {
-            false
-        }
     }
 
     suspend fun register(
@@ -44,42 +110,66 @@ class AuthenticationRepository @Inject constructor(
         email: String, dob: String, 
         addressLine: String, city: String, 
         state: String, pinCode: String
-    ): Boolean {
+    ): RegistrationResult {
         return try {
+            val fullName = "$firstName $lastName".trim()
+            val fullAddress = listOf(addressLine, city, state, pinCode).filter { it.isNotBlank() }.joinToString(", ")
             val request = RegisterRequestDto(
                 username = mobileNumber,
-                firstName = firstName,
-                lastName = lastName,
-                mobileNumber = mobileNumber,
                 password = password,
                 email = email,
-                dateOfBirth = dob, // If the backend requires a specific format, we pass it dynamically
-                addressLine1 = addressLine,
-                city = city,
-                state = state,
-                pinCode = pinCode,
-                kycDocumentType = "AADHAAR",
-                kycDocumentNumber = "000000000000"
+                name = fullName,
+                address = fullAddress
             )
             val response = api.register(request)
             if (response.isSuccessful && response.body() != null) {
-                true
+                val backendUserId = response.body()?.userId
+                val paymentId = response.body()?.publicPaymentId
+                if (backendUserId != null) {
+                    userRepository.createUser(
+                        userId = backendUserId,
+                        name = "$firstName $lastName".trim(),
+                        phoneNumber = mobileNumber,
+                        accountNumber = "12345678901234",
+                        ifscCode = "SBIN0001234",
+                        bankName = "State Bank of India",
+                        publicPaymentId = paymentId
+                    )
+                }
+                RegistrationResult.Success
             } else {
-                false
+                Log.e("AuthRepository", "Register failed: ${response.code()} ${response.errorBody()?.string()}")
+                when (response.code()) {
+                    409 -> RegistrationResult.Conflict
+                    400 -> RegistrationResult.ValidationError("Invalid registration details.") // Parse safely if needed
+                    in 500..599 -> RegistrationResult.ServerError
+                    else -> RegistrationResult.NetworkError
+                }
             }
+        } catch (e: ConnectException) {
+            Log.e("AuthRepository", "Register connection refused/failed. Server unreachable.", e)
+            RegistrationResult.NetworkError
+        } catch (e: SocketTimeoutException) {
+            Log.e("AuthRepository", "Register request timed out.", e)
+            RegistrationResult.NetworkError
+        } catch (e: HttpException) {
+            Log.e("AuthRepository", "Register HTTP Exception: ${e.code()} ${e.response()?.errorBody()?.string()}", e)
+            RegistrationResult.NetworkError
         } catch (e: Exception) {
-            false
+            Log.e("AuthRepository", "Register unexpected exception: ${e.message}", e)
+            RegistrationResult.ServerError
         }
     }
 
     suspend fun logout() {
-        try {
-            appwriteAccount.deleteSession("current")
-        } catch (e: Exception) {
-            // Ignore failure if offline or already erased
-        }
         sessionManager.logout()
         tokenStorage.clearToken()
+        userRepository.clearActiveUser()
+        
+        // Clear cached wallet/history data on logout for absolute isolation
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            database.clearAllTables()
+        }
     }
 
     suspend fun isValidSession(): Boolean {
@@ -88,25 +178,18 @@ class AuthenticationRepository @Inject constructor(
         }
         
         
-        return try {
-            val session = appwriteAccount.getSession("current")
-            session.current
-        } catch (e: AppwriteException) {
-            // If the error code implies network issue, we might want to default to true for offline mode.
-            // But AppwriteException has codes. 401 is unauthorized (invalid session).
-            if (e.code == 401) {
-                tokenStorage.clearToken()
-                false
-            } else {
-                // If it's a network error (e.g. 0 or unreachable) allow offline fallback since we have a JWT
-                true
-            }
-        } catch (e: Exception) {
-            true // Allow offline
-        }
+        return true
     }
 
     fun isAuthenticated(): Boolean {
         return tokenStorage.hasToken()
     }
+}
+
+sealed class RegistrationResult {
+    object Success : RegistrationResult()
+    object Conflict : RegistrationResult()
+    data class ValidationError(val message: String) : RegistrationResult()
+    object ServerError : RegistrationResult()
+    object NetworkError : RegistrationResult()
 }

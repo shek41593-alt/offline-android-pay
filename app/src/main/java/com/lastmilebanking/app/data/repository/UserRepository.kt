@@ -21,13 +21,14 @@ class UserRepository @Inject constructor(
     suspend fun getUserByPhone(phone: String): UserEntity? = userDao.getUserByPhone(phone)
 
     suspend fun createUser(
+        userId: String,
         name: String,
         phoneNumber: String,
         accountNumber: String,
         ifscCode: String,
-        bankName: String
+        bankName: String,
+        publicPaymentId: String? = null
     ): UserEntity {
-        val userId = UUID.randomUUID().toString()
         val user = UserEntity(
             userId = userId,
             name = name,
@@ -36,7 +37,8 @@ class UserRepository @Inject constructor(
             ifscCode = ifscCode,
             bankName = bankName,
             kycStatus = "VERIFIED",
-            isActive = true
+            isActive = true,
+            publicPaymentId = publicPaymentId
         )
         userDao.insertUser(user)
 
@@ -44,8 +46,8 @@ class UserRepository @Inject constructor(
         val wallet = WalletEntity(
             walletId = UUID.randomUUID().toString(),
             userId = userId,
-            availableBalance = 5420.00, // Demo seed balance
-            offlineBalance = 2000.00,
+            availableBalance = 0.0,
+            offlineBalance = 0.0,
             pendingBalance = 0.0
         )
         walletDao.insertWallet(wallet)
@@ -53,16 +55,12 @@ class UserRepository @Inject constructor(
         return user
     }
 
-    suspend fun seedDemoUserIfNeeded() {
-        val existing = userDao.getUserByPhone("9876543210")
-        if (existing == null) {
-            createUser(
-                name = "Rahul Sharma",
-                phoneNumber = "9876543210",
-                accountNumber = "12345678901234",
-                ifscCode = "SBIN0001234",
-                bankName = "State Bank of India"
-            )
-        }
+    suspend fun setActiveUser(userId: String) {
+        userDao.clearActiveUsers()
+        userDao.setActiveUser(userId)
+    }
+
+    suspend fun clearActiveUser() {
+        userDao.clearActiveUsers()
     }
 }

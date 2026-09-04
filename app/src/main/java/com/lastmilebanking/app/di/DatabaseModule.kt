@@ -25,6 +25,7 @@ object DatabaseModule {
             LastMileDatabase::class.java,
             LastMileDatabase.DATABASE_NAME
         )
+            .addMigrations(LastMileDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

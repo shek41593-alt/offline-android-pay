@@ -26,9 +26,11 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("boolean", "DEV_AUTH_FALLBACK_ENABLED", "false")
+            buildConfigField("String", "BASE_URL", "\"https://api.lastmilebanking.com/\"")
         }
         debug {
             buildConfigField("boolean", "DEV_AUTH_FALLBACK_ENABLED", "true")
+            buildConfigField("String", "BASE_URL", "\"http://13.235.171.27:8080/\"")
         }
     }
     compileOptions {
@@ -104,10 +106,6 @@ dependencies {
     implementation("androidx.hilt:hilt-work:1.1.0")
     kapt("androidx.hilt:hilt-compiler:1.1.0")
 
-    // Appwrite SDK includes okhttp-bom which causes a variant matching failure ('platform vs library') in AGP 8+
-    implementation("io.appwrite:sdk-for-android:5.0.0") {
-        exclude(group = "com.squareup.okhttp3", module = "okhttp-bom")
-    }
 
     // Testing
     testImplementation("junit:junit:4.13.2")

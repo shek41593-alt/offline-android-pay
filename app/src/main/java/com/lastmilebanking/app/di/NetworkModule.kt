@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://10.76.75.250:8080/"
+    private val BASE_URL = com.lastmilebanking.app.BuildConfig.BASE_URL
 
     @Provides
     @Singleton

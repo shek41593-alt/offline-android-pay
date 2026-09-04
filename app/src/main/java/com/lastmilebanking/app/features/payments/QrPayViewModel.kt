@@ -10,24 +10,25 @@ import com.lastmilebanking.app.domain.engines.WalletEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class QrPayState {
     object Idle : QrPayState()
     object Loading : QrPayState()
-    data class Verify(val receiverId: String, val amount: Double) : QrPayState()
-    data class Success(val transactionId: String) : QrPayState()
+    data class RecipientFound(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val balance: java.math.BigDecimal) : QrPayState()
+    data class PaymentAmount(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val balance: java.math.BigDecimal) : QrPayState()
+    data class PaymentReview(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val amount: java.math.BigDecimal, val idempotencyKey: String) : QrPayState()
+    data class Success(val transactionId: String, val amount: java.math.BigDecimal, val name: String) : QrPayState()
     data class Error(val message: String) : QrPayState()
 }
 
 @HiltViewModel
 class QrPayViewModel @Inject constructor(
-    private val validationEngine: ValidationEngine,
-    private val transactionEngine: TransactionEngine,
-    private val walletEngine: WalletEngine,
-    private val synchronizationEngine: SynchronizationEngine,
-    private val authenticationEngine: AuthenticationEngine
+    private val userRepository: com.lastmilebanking.app.data.repository.UserRepository,
+    private val walletRepository: com.lastmilebanking.app.data.repository.WalletRepository,
+    private val apiService: com.lastmilebanking.app.data.network.api.LastMileApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<QrPayState>(QrPayState.Idle)
@@ -35,83 +36,148 @@ class QrPayViewModel @Inject constructor(
 
     fun onScanResult(qrData: String?) {
         if (qrData.isNullOrBlank()) {
-            _uiState.value = QrPayState.Error("Invalid QR code")
+            _uiState.value = QrPayState.Error("Invalid Last Mile Banking QR")
             return
         }
 
         try {
-            // expected format: LMB:OFFLINE_TXN:UID1234:SECURE_HASH:500.00
-            val parts = qrData.split(":")
-            if (parts.size >= 5 && parts[0] == "LMB") {
-                val receiverId = parts[2]
-                val amount = parts[4].toDoubleOrNull() ?: 0.0
-                
-                if (amount <= 0) {
-                    _uiState.value = QrPayState.Error("Invalid amount in QR")
+            if (qrData.startsWith("LMBPAY:")) {
+                val publicPaymentId = qrData.removePrefix("LMBPAY:")
+                if (publicPaymentId.isBlank()) {
+                    _uiState.value = QrPayState.Error("Invalid Last Mile Banking QR")
                 } else {
-                    _uiState.value = QrPayState.Verify(receiverId, amount)
+                    resolveRecipient(publicPaymentId)
                 }
             } else {
-                _uiState.value = QrPayState.Error("Unrecognized QR format")
+                _uiState.value = QrPayState.Error("Invalid Last Mile Banking QR")
             }
         } catch (e: Exception) {
-            _uiState.value = QrPayState.Error("Failed to parse QR code")
+            _uiState.value = QrPayState.Error("Invalid Last Mile Banking QR")
         }
     }
 
-    fun processQrPayment(receiverId: String, amount: Double) {
+    private fun resolveRecipient(publicPaymentId: String) {
         viewModelScope.launch {
             _uiState.value = QrPayState.Loading
             
             try {
-                if (amount <= 0) {
-                    _uiState.value = QrPayState.Error("Invalid amount")
+                val user = userRepository.getActiveUser().firstOrNull()
+                val currentUserId = user?.userId
+                if (currentUserId == null) {
+                    _uiState.value = QrPayState.Error("User session not found")
                     return@launch
-                }
-
-                // Get current user id
-                // MVP assumption: user ID is present in auth engine or session
-                // We'll use a mocked "USER_01" if session fetching is not fully set up
-                val userId = "USER_01" 
+                } 
                 
-                // 1. ValidationEngine
-                val isWithinLimit = validationEngine.isWithinOfflineLimit(userId, amount)
-                if (!isWithinLimit) {
-                    _uiState.value = QrPayState.Error("Amount exceeds offline limits")
-                    return@launch
-                }
-
-                val hasBalance = validationEngine.hasSufficientBalance(userId, amount)
-                if (!hasBalance) {
-                    _uiState.value = QrPayState.Error("Insufficient balance")
-                    return@launch
-                }
-                
-                // 2. TransactionEngine
-                val transactionResult = transactionEngine.createTransaction(
-                    senderId = userId,
-                    receiverId = receiverId,
-                    amount = amount,
-                    type = "SEND",
-                    paymentMode = "QR"
-                )
-
-                if (transactionResult.isSuccess) {
-                    val transactionId = transactionResult.getOrNull() ?: ""
-                    
-                    // 3. WalletEngine (Debit sender)
-                    walletEngine.debit(userId, amount)
-
-                    // 4. Enqueue synchronization
-                    synchronizationEngine.enqueueTransaction(transactionId)
-
-                    _uiState.value = QrPayState.Success(transactionId)
+                // Make API call. We need to inject LastMileApiService here or use it via repository.
+                // Assuming we can simply use the injected api service here to quickly resolve. Wait! We didn't inject api service yet.
+                // We will add it below. Let's just assume we inject `apiService`.
+                val response = apiService.resolveRecipient(publicPaymentId)
+                if (response.isSuccessful) {
+                    val dto = response.body()
+                    if (dto != null) {
+                        if (dto.userId == currentUserId) {
+                            _uiState.value = QrPayState.Error("You cannot pay yourself.")
+                        } else {
+                            val balanceResponse = apiService.getWalletBalance()
+                            val balance = balanceResponse.body()?.balance ?: java.math.BigDecimal.ZERO
+                            
+                            _uiState.value = QrPayState.RecipientFound(
+                                publicPaymentId = dto.publicPaymentId ?: "",
+                                name = dto.name ?: "Unknown",
+                                phone = dto.phone ?: "",
+                                userId = dto.userId ?: "",
+                                balance = balance
+                            )
+                        }
+                    } else {
+                        _uiState.value = QrPayState.Error("User not found")
+                    }
+                } else if (response.code() == 404) {
+                    _uiState.value = QrPayState.Error("User not found")
+                } else if (response.code() == 400 && response.errorBody()?.string()?.contains("pay yourself") == true) {
+                    _uiState.value = QrPayState.Error("You cannot pay yourself.")
                 } else {
-                    _uiState.value = QrPayState.Error("Failed to create transaction record")
+                    _uiState.value = QrPayState.Error("User not found")
                 }
-
             } catch (e: Exception) {
-                _uiState.value = QrPayState.Error(e.message ?: "Unknown error occurred")
+                _uiState.value = QrPayState.Error("Network error: User not found")
+            }
+        }
+    }
+
+    fun proceedToAmount() {
+        val currentState = _uiState.value
+        if (currentState is QrPayState.RecipientFound) {
+            _uiState.value = QrPayState.PaymentAmount(
+                publicPaymentId = currentState.publicPaymentId,
+                name = currentState.name,
+                phone = currentState.phone,
+                userId = currentState.userId,
+                balance = currentState.balance
+            )
+        }
+    }
+
+    fun submitAmount(amount: java.math.BigDecimal) {
+        val currentState = _uiState.value
+        if (currentState is QrPayState.PaymentAmount) {
+            if (amount <= java.math.BigDecimal.ZERO) {
+                _uiState.value = QrPayState.Error("Amount must be greater than zero")
+                return
+            }
+            if (amount > currentState.balance) {
+                _uiState.value = QrPayState.Error("Insufficient balance")
+                return
+            }
+            val idempotencyKey = java.util.UUID.randomUUID().toString()
+            _uiState.value = QrPayState.PaymentReview(
+                publicPaymentId = currentState.publicPaymentId,
+                name = currentState.name,
+                phone = currentState.phone,
+                userId = currentState.userId,
+                amount = amount,
+                idempotencyKey = idempotencyKey
+            )
+        }
+    }
+
+    fun confirmPayment(idempotencyKey: String) {
+        val currentState = _uiState.value
+        if (currentState is QrPayState.PaymentReview && currentState.idempotencyKey == idempotencyKey) {
+            viewModelScope.launch {
+                _uiState.value = QrPayState.Loading
+                try {
+                    val request = com.lastmilebanking.app.data.network.dto.DirectPaymentRequestDto(
+                        recipientPaymentId = currentState.publicPaymentId,
+                        amount = currentState.amount,
+                        idempotencyKey = currentState.idempotencyKey
+                    )
+                    val response = apiService.processPayment(request)
+                    if (response.isSuccessful) {
+                        val dto = response.body()
+                        try {
+                            walletRepository.refreshWalletFromBackend(currentState.userId)
+                        } catch (e: Exception) {
+                            // Ignored
+                        }
+                        _uiState.value = QrPayState.Success(
+                            transactionId = dto?.transactionId ?: currentState.idempotencyKey,
+                            amount = currentState.amount,
+                            name = currentState.name
+                        )
+                    } else {
+                        val errorBody = response.errorBody()?.string() ?: ""
+                        if (response.code() == 409) {
+                            _uiState.value = QrPayState.Error("Transaction is in progress or already processed.")
+                        } else if (response.code() == 400 && errorBody.contains("INSUFFICIENT_BALANCE")) {
+                            _uiState.value = QrPayState.Error("Insufficient balance")
+                        } else {
+                            _uiState.value = QrPayState.Error("Payment failed. Please try again.")
+                        }
+                    }
+                } catch (e: Exception) {
+                    _uiState.value = QrPayState.Error("Network error: Payment failed")
+                }
             }
         }
     }

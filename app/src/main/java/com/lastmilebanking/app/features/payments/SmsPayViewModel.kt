@@ -11,6 +11,7 @@ import com.lastmilebanking.app.domain.engines.WalletEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,6 +31,7 @@ class SmsPayViewModel @Inject constructor(
     private val walletEngine: WalletEngine,
     private val offlinePaymentEngine: OfflinePaymentEngine,
     private val synchronizationEngine: SynchronizationEngine,
+    private val userRepository: com.lastmilebanking.app.data.repository.UserRepository,
     private val authenticationEngine: AuthenticationEngine
 ) : ViewModel() {
 
@@ -49,7 +51,8 @@ class SmsPayViewModel @Inject constructor(
             _uiState.value = SmsPayState.Loading
             
             try {
-                val userId = "USER_01" 
+                val user = userRepository.getActiveUser().firstOrNull()
+                val userId = user?.userId ?: return@launch 
                 
                 val isWithinLimit = validationEngine.isWithinOfflineLimit(userId, amount)
                 if (!isWithinLimit) {
@@ -75,7 +78,12 @@ class SmsPayViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = SmsPayState.Loading
             try {
-                val userId = "USER_01"
+                val user = userRepository.getActiveUser().firstOrNull()
+                val userId = user?.userId
+                if (userId == null) {
+                    _uiState.value = SmsPayState.Error("User session not found")
+                    return@launch
+                }
 
                 val transactionResult = transactionEngine.createTransaction(
                     senderId = userId,

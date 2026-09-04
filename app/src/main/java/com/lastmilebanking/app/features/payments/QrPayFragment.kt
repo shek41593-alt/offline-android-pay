@@ -81,26 +81,131 @@ class QrPayFragment : Fragment() {
             override fun possibleResultPoints(resultPoints: MutableList<ResultPoint>?) {}
         })
 
+        val recipientContainer = view.findViewById<View>(R.id.recipientContainer)
+        val tvRecipientName = view.findViewById<android.widget.TextView>(R.id.tvRecipientName)
+        val tvRecipientPhone = view.findViewById<android.widget.TextView>(R.id.tvRecipientPhone)
+        val tvRecipientPaymentId = view.findViewById<android.widget.TextView>(R.id.tvRecipientPaymentId)
+        val btnContinue = view.findViewById<View>(R.id.btnContinue)
+
+        val amountContainer = view.findViewById<View>(R.id.amountContainer)
+        val tvAmountRecipientName = view.findViewById<android.widget.TextView>(R.id.tvAmountRecipientName)
+        val tvAmountRecipientDetails = view.findViewById<android.widget.TextView>(R.id.tvAmountRecipientDetails)
+        val etAmount = view.findViewById<android.widget.EditText>(R.id.etAmount)
+        val tvAvailableBalance = view.findViewById<android.widget.TextView>(R.id.tvAvailableBalance)
+        val btnSubmitAmount = view.findViewById<View>(R.id.btnSubmitAmount)
+
+        val reviewContainer = view.findViewById<View>(R.id.reviewContainer)
+        val tvReviewName = view.findViewById<android.widget.TextView>(R.id.tvReviewName)
+        val tvReviewPaymentId = view.findViewById<android.widget.TextView>(R.id.tvReviewPaymentId)
+        val tvReviewAmount = view.findViewById<android.widget.TextView>(R.id.tvReviewAmount)
+        val btnConfirmPayment = view.findViewById<View>(R.id.btnConfirmPayment)
+
+        val successContainer = view.findViewById<View>(R.id.successContainer)
+        val tvSuccessAmount = view.findViewById<android.widget.TextView>(R.id.tvSuccessAmount)
+        val tvSuccessName = view.findViewById<android.widget.TextView>(R.id.tvSuccessName)
+        val tvSuccessTransactionId = view.findViewById<android.widget.TextView>(R.id.tvSuccessTransactionId)
+        val btnDone = view.findViewById<View>(R.id.btnDone)
+
+        btnContinue.setOnClickListener {
+            viewModel.proceedToAmount()
+        }
+
+        btnSubmitAmount.setOnClickListener {
+            val amountStr = etAmount.text.toString()
+            val amount = amountStr.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+            viewModel.submitAmount(amount)
+        }
+
+        var currentIdempotencyKey = ""
+        btnConfirmPayment.setOnClickListener {
+            btnConfirmPayment.isEnabled = false
+            viewModel.confirmPayment(currentIdempotencyKey)
+        }
+
+        btnDone.setOnClickListener {
+            findNavController().popBackStack()
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     when (state) {
-                        is QrPayState.Verify -> {
-                            showConfirmationDialog(state.receiverId, state.amount)
-                            viewModel.resetState()
+                        is QrPayState.RecipientFound -> {
+                            isProcessing = false
+                            paymentDialog?.dismiss()
+                            barcodeScannerView.pause()
+                            
+                            recipientContainer.visibility = View.VISIBLE
+                            amountContainer.visibility = View.GONE
+                            reviewContainer.visibility = View.GONE
+                            successContainer.visibility = View.GONE
+                            barcodeScannerView.visibility = View.GONE
+                            
+                            tvRecipientName.text = state.name
+                            tvRecipientPhone.text = state.phone
+                            tvRecipientPaymentId.text = state.publicPaymentId
+                        }
+                        is QrPayState.PaymentAmount -> {
+                            recipientContainer.visibility = View.GONE
+                            amountContainer.visibility = View.VISIBLE
+                            reviewContainer.visibility = View.GONE
+                            successContainer.visibility = View.GONE
+                            
+                            tvAmountRecipientName.text = state.name
+                            tvAmountRecipientDetails.text = "${state.phone} • ${state.publicPaymentId}"
+                            tvAvailableBalance.text = "Available Balance: ₹${state.balance}"
+                        }
+                        is QrPayState.PaymentReview -> {
+                            recipientContainer.visibility = View.GONE
+                            amountContainer.visibility = View.GONE
+                            reviewContainer.visibility = View.VISIBLE
+                            successContainer.visibility = View.GONE
+                            
+                            btnConfirmPayment.isEnabled = true
+                            currentIdempotencyKey = state.idempotencyKey
+                            
+                            tvReviewName.text = state.name
+                            tvReviewPaymentId.text = state.publicPaymentId
+                            tvReviewAmount.text = "₹${state.amount}"
                         }
                         is QrPayState.Success -> {
-                            isProcessing = false
-                            showSuccessDialog(state.transactionId)
-                            viewModel.resetState()
+                            paymentDialog?.dismiss()
+                            recipientContainer.visibility = View.GONE
+                            amountContainer.visibility = View.GONE
+                            reviewContainer.visibility = View.GONE
+                            successContainer.visibility = View.VISIBLE
+                            
+                            tvSuccessName.text = state.name
+                            tvSuccessAmount.text = "₹${state.amount}"
+                            tvSuccessTransactionId.text = state.transactionId
                         }
                         is QrPayState.Error -> {
                             isProcessing = false
-                            showErrorDialog(state.message)
-                            viewModel.resetState()
+                            paymentDialog?.dismiss()
+                            btnConfirmPayment.isEnabled = true
+                            
+                            Toast.makeText(requireContext(), state.message, Toast.LENGTH_LONG).show()
+                            
+                            // If we were on amount or review screen, we stay there so they can fix it.
+                            if (amountContainer.visibility != View.VISIBLE && reviewContainer.visibility != View.VISIBLE) {
+                                recipientContainer.visibility = View.GONE
+                                barcodeScannerView.resume()
+                                barcodeScannerView.visibility = View.VISIBLE
+                                viewModel.resetState()
+                            } else {
+                                // If error occurred during payment api, we reset to amount so they can retry smoothly
+                                viewModel.resetState()
+                            }
                         }
                         is QrPayState.Loading -> {
-                            // Handled by disabling button in the dialog
+                            // Show loading dialog
+                            if (paymentDialog == null || paymentDialog?.isShowing == false) {
+                                paymentDialog = AlertDialog.Builder(requireContext())
+                                    .setTitle("Resolving recipient...")
+                                    .setMessage("Please wait")
+                                    .setCancelable(false)
+                                    .show()
+                            }
                         }
                         else -> { }
                     }
@@ -131,55 +236,5 @@ class QrPayFragment : Fragment() {
         barcodeScannerView.pause()
     }
 
-    private fun showConfirmationDialog(receiverId: String, amount: Double) {
-        val builder = AlertDialog.Builder(requireContext())
-            .setTitle("Confirm Payment")
-            .setMessage("Pay $$amount to recipient $receiverId?")
-            .setCancelable(false)
-            .setPositiveButton("Confirm Payment", null) // Set to null first to override click block
-            .setNegativeButton("Cancel") { dialog, _ ->
-                dialog.dismiss()
-                isProcessing = false
-                barcodeScannerView.resume()
-            }
-        
-        paymentDialog = builder.create()
-        paymentDialog?.setOnShowListener {
-            val positiveButton = paymentDialog?.getButton(AlertDialog.BUTTON_POSITIVE)
-            positiveButton?.setOnClickListener {
-                positiveButton.isEnabled = false // prevent double click
-                positiveButton.text = "Processing..."
-                viewModel.processQrPayment(receiverId, amount)
-            }
-        }
-        paymentDialog?.show()
-    }
-
-    private fun showSuccessDialog(transactionId: String) {
-        paymentDialog?.dismiss()
-        AlertDialog.Builder(requireContext())
-            .setTitle("Payment Successful")
-            .setMessage("Transaction completed.\nTransaction ID: $transactionId")
-            .setCancelable(false)
-            .setPositiveButton("DONE") { _, _ ->
-                findNavController().popBackStack()
-            }
-            .show()
-    }
-
-    private fun showErrorDialog(message: String) {
-        paymentDialog?.dismiss()
-        AlertDialog.Builder(requireContext())
-            .setTitle("Payment Failed")
-            .setMessage(message)
-            .setCancelable(false)
-            .setPositiveButton("TRY AGAIN") { _, _ ->
-                isProcessing = false
-                barcodeScannerView.resume()
-            }
-            .setNegativeButton("BACK") { _, _ ->
-                findNavController().popBackStack()
-            }
-            .show()
-    }
+    // Dialog methods removed for Phase 3
 }

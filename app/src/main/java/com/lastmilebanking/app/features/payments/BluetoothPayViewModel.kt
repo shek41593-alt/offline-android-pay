@@ -11,7 +11,9 @@ import com.lastmilebanking.app.domain.engines.WalletEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import com.lastmilebanking.app.data.repository.UserRepository
 import javax.inject.Inject
 
 sealed class BluetoothPayState {
@@ -29,7 +31,8 @@ class BluetoothPayViewModel @Inject constructor(
     private val walletEngine: WalletEngine,
     private val offlinePaymentEngine: OfflinePaymentEngine,
     private val synchronizationEngine: SynchronizationEngine,
-    private val authenticationEngine: AuthenticationEngine
+    private val authenticationEngine: AuthenticationEngine,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<BluetoothPayState>(BluetoothPayState.Idle)
@@ -44,7 +47,12 @@ class BluetoothPayViewModel @Inject constructor(
                     return@launch
                 }
 
-                val userId = "USER_01"
+                val user = userRepository.getActiveUser().firstOrNull()
+                val userId = user?.userId
+                if (userId == null) {
+                    _uiState.value = BluetoothPayState.Error("User session not found")
+                    return@launch
+                }
                 val isWithinLimit = validationEngine.isWithinOfflineLimit(userId, amount)
                 if (!isWithinLimit) {
                     _uiState.value = BluetoothPayState.Error("Amount exceeds offline limits")
@@ -69,7 +77,12 @@ class BluetoothPayViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = BluetoothPayState.Loading
             try {
-                val userId = "USER_01"
+                val user = userRepository.getActiveUser().firstOrNull()
+                val userId = user?.userId
+                if (userId == null) {
+                    _uiState.value = BluetoothPayState.Error("User session not found")
+                    return@launch
+                }
                 val transactionResult = transactionEngine.createTransaction(
                     senderId = userId,
                     receiverId = receiverId,

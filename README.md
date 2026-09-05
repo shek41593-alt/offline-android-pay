@@ -1,5 +1,5 @@
 # Offline Android Pay
-
+in construction 
 ## Project Overview
 This project provides an offline-first mobile payment solution for Android. Its purpose is to enable secure transactions in environments with limited or no internet connectivity. 
 

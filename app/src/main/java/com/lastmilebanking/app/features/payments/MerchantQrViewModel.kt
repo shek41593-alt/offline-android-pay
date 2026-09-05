@@ -23,6 +23,7 @@ sealed class MerchantQrState {
     object Idle : MerchantQrState()
     object Generating : MerchantQrState()
     data class QrReady(val canonicalPayload: String, val amount: String, val merchantName: String) : MerchantQrState()
+    data class TrustQrReady(val payload: String) : MerchantQrState()
     data class Error(val message: String) : MerchantQrState()
 }
 
@@ -108,6 +109,45 @@ class MerchantQrViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Return user-readable message, not raw exceptions with logic pointers
                 _uiState.value = MerchantQrState.Error("Unable to create secure payment request. Error parsing amount or executing security bindings.")
+            }
+        }
+    }
+
+    fun generateTrustRegistrationQr() {
+        viewModelScope.launch {
+            _uiState.value = MerchantQrState.Generating
+            
+            try {
+                val user = userRepository.getActiveUser().firstOrNull()
+                val wallet = user?.let { walletRepository.getWalletByUserId(it.userId).firstOrNull() }
+                
+                if (user == null || wallet == null) {
+                    _uiState.value = MerchantQrState.Error("Missing merchant identity context")
+                    return@launch
+                }
+                
+                val publicKeyEncoded = qrSigner.getPublicKey().encoded
+                val publicKeyBase64 = Base64.encodeToString(publicKeyEncoded, Base64.NO_WRAP)
+                
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val hashBytes = digest.digest(publicKeyEncoded)
+                val fingerprint = hashBytes.joinToString("") { "%02x".format(it) }
+                
+                val payload = com.lastmilebanking.app.domain.payment.qr.TrustRegistrationPayload(
+                    version = 1,
+                    type = "TRUST_REGISTRATION",
+                    merchantId = user.userId,
+                    merchantWalletId = wallet.walletId,
+                    publicKeyBase64 = publicKeyBase64,
+                    keyAlgorithm = "EC",
+                    signatureAlgorithm = "SHA256withECDSA",
+                    fingerprint = fingerprint,
+                    createdAt = System.currentTimeMillis()
+                )
+                
+                _uiState.value = MerchantQrState.TrustQrReady(gson.toJson(payload))
+            } catch (e: Exception) {
+                _uiState.value = MerchantQrState.Error("Unable to create Trust Registration QR.")
             }
         }
     }

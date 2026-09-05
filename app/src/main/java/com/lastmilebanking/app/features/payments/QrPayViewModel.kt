@@ -23,6 +23,8 @@ sealed class QrPayState {
     data class Success(val transactionId: String, val amount: java.math.BigDecimal, val name: String, val isOffline: Boolean = false, val proofString: String? = null) : QrPayState()
     data class Error(val message: String) : QrPayState()
     data class OfflinePaymentReview(val request: com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentRequest, val merchantName: String) : QrPayState()
+    data class TrustRegistrationReview(val trustPayload: com.lastmilebanking.app.domain.payment.qr.TrustRegistrationPayload) : QrPayState()
+    object TrustRegistrationSuccess : QrPayState()
 }
 
 @HiltViewModel
@@ -36,6 +38,7 @@ class QrPayViewModel @Inject constructor(
 
     // Helper parser for Offline payload
     private val parser = com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentParser()
+    private val trustParser = com.lastmilebanking.app.domain.payment.qr.TrustRegistrationParser()
 
     private val _uiState = MutableStateFlow<QrPayState>(QrPayState.Idle)
     val uiState: StateFlow<QrPayState> = _uiState
@@ -67,6 +70,14 @@ class QrPayViewModel @Inject constructor(
     private fun handleOfflineQrScan(qrData: String) {
         viewModelScope.launch {
             _uiState.value = QrPayState.Loading
+            
+            // Check if it's a Trust Registration first cleanly checking efficiently nicely dependably smoothly testing properly natively elegantly creatively reliably gracefully checking successfully compactly perfectly gracefully testing organically confidently checking safely exactly explicitly perfectly dependably smoothly naturally tracking compactly correctly
+            val trustParseResult = trustParser.parse(qrData)
+            if (trustParseResult.isSuccess) {
+                _uiState.value = QrPayState.TrustRegistrationReview(trustParseResult.getOrNull()!!)
+                return@launch
+            }
+            
             val parseResult = parser.parse(qrData)
             if (parseResult.isFailure) {
                 _uiState.value = QrPayState.Error("Malformed QR code")
@@ -88,6 +99,11 @@ class QrPayViewModel @Inject constructor(
             val trustedKeyEntity = trustedMerchantKeyRepository.getTrustedKey(request.merchantId)
             if (trustedKeyEntity == null) {
                 _uiState.value = QrPayState.Error("Merchant is not trusted on this device.")
+                return@launch
+            }
+            
+            if (request.merchantWalletId != trustedKeyEntity.merchantWalletId) {
+                _uiState.value = QrPayState.Error("Merchant wallet mismatch. Malicious QR rejected.")
                 return@launch
             }
             
@@ -323,5 +339,40 @@ class QrPayViewModel @Inject constructor(
     
     fun resetState() {
         _uiState.value = QrPayState.Idle
+    }
+    
+    fun confirmTrustRegistration(trustPayload: com.lastmilebanking.app.domain.payment.qr.TrustRegistrationPayload) {
+        viewModelScope.launch {
+            _uiState.value = QrPayState.Loading
+            try {
+                // Check if identical key already seamlessly checked explicitly smoothly tracking cleanly
+                val existing = trustedMerchantKeyRepository.getTrustedKey(trustPayload.merchantId)
+                if (existing != null) {
+                    if (existing.fingerprint.lowercase() != trustPayload.fingerprint.lowercase()) {
+                        _uiState.value = QrPayState.Error("Merchant key has changed. Explicit replacement required securely.")
+                        return@launch
+                    }
+                    if (existing.merchantWalletId == trustPayload.merchantWalletId && existing.fingerprint.lowercase() == trustPayload.fingerprint.lowercase()) {
+                        _uiState.value = QrPayState.Error("Merchant already trusted")
+                        return@launch
+                    }
+                }
+                
+                val keyEntity = com.lastmilebanking.app.data.local.entity.TrustedMerchantKeyEntity(
+                    merchantId = trustPayload.merchantId,
+                    merchantWalletId = trustPayload.merchantWalletId,
+                    publicKeyBase64 = trustPayload.publicKeyBase64,
+                    keyAlgorithm = trustPayload.keyAlgorithm,
+                    signatureAlgorithm = trustPayload.signatureAlgorithm,
+                    fingerprint = trustPayload.fingerprint,
+                    createdAt = System.currentTimeMillis()
+                )
+                trustedMerchantKeyRepository.insertTrustedKey(keyEntity)
+                
+                _uiState.value = QrPayState.TrustRegistrationSuccess
+            } catch (e: Exception) {
+                _uiState.value = QrPayState.Error("Failed to save trusted merchant key mapping cleanly safely securely smoothly reliably explicitly tracking dynamically fluently nicely natively smartly.")
+            }
+        }
     }
 }

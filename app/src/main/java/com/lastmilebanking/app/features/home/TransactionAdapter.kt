@@ -45,13 +45,21 @@ class TransactionAdapter(private val onClick: (String) -> Unit = {}) : ListAdapt
             )
 
             binding.tvDate.text = dateFormat.format(Date(transaction.createdAt))
-            binding.tvStatus.text = transaction.status
+            val statusText = when (transaction.status) {
+                "PENDING_SYNC" -> "Waiting for synchronization"
+                "SYNCING" -> "Synchronizing"
+                "SETTLED", "SYNCED" -> "Payment settled"
+                "CONFLICT" -> "Payment requires attention"
+                "ACTION_REQUIRED" -> "Action required"
+                else -> transaction.status
+            }
+            binding.tvStatus.text = statusText
 
             // Status chip color
             val statusColor = when (transaction.status) {
-                "COMPLETED", "SYNCED" -> R.color.color_success
-                "PENDING" -> R.color.color_warning
-                "FAILED" -> R.color.color_error
+                "COMPLETED", "SYNCED", "SETTLED" -> R.color.color_success
+                "PENDING", "PENDING_SYNC", "SYNCING" -> R.color.color_warning
+                "FAILED", "CONFLICT", "ACTION_REQUIRED" -> R.color.color_error
                 else -> R.color.color_warning
             }
             binding.tvStatus.setTextColor(ContextCompat.getColor(binding.root.context, statusColor))

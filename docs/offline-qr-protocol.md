@@ -1,0 +1,80 @@
+# Offline QR Protocol
+
+## 1. Purpose
+The Offline QR Protocol enables merchants and customers to conduct cryptographically secure payment requests without immediate internet access. It provides indisputable proof of authorized intent to debit a customer's wallet in favor of a merchant, bounded securely within a robust cryptographic architecture, ensuring authenticity and integrity while offline.
+
+## 2. Threat Model
+- **Tampering/Manipulation:** Attackers modifying payload fields (like `amount` or `payee/merchantWalletId`) natively breaks the overall EC cryptographic `.sign()` bytes yielding verification failure.
+- **Forgery:** Private keys are vaulted locally in the hardware-backed Android KeyStore reducing extraction probability and preventing rogue payload generation. 
+- **Replay Attacks:** Addressed through `clientOperationId` (globally unique UUIDs per transaction), `nonce`, and short-lived expiry constraints (1 hour max life).
+
+## 3. QR Schema
+Conceptual Equivalent JSON Schema forming the domain `OfflineQrPaymentRequest`:
+```json
+{
+  "version": 1,
+  "type": "LMB_PAYMENT_REQUEST",
+  "merchantId": "MERCHANT_XYZ",
+  "merchantWalletId": "WALLET_XYZ",
+  "amount": "100.00",
+  "currency": "INR",
+  "clientOperationId": "uuid-...",
+  "timestamp": 1693892837332,
+  "nonce": "NONCE_XYZ",
+  "paymentMode": "OFFLINE_QR",
+  "signature": "base64_encoded_ecdsa_signature"
+}
+```
+Field Classification:
+- `version`, `type`, `merchantId`, `merchantWalletId`, `amount`, `currency`, `clientOperationId`, `timestamp`, `nonce`, `paymentMode`: Required, Security-sensitive, User-visible.
+- `signature`: Server-authoritative, Cryptographic proof (Not user-visible directly). 
+
+## 4. Canonicalization
+Canonical Payload strictly normalizes elements for signing to avoid encoding drift vulnerabilities.
+- Format: `version|type|merchantId|merchantWalletId|amount|currency|clientOperationId|timestamp|nonce|paymentMode`
+- Serialization explicitly uses stable delimiters (`|`) and strict UTF-8 encoded Byte Arrays. No arbitrary maps or unordered JSON attributes persist inside the cryptographic core pipeline.
+
+## 5. Cryptographic Model
+Merchant Device (Signing):
+- Generates un-extractable EC KeyPair explicitly via Android KeyStore `KeyProperties.PURPOSE_SIGN`.
+- Binds Canonical String -> SHA256withECDSA -> signature strings (Base64).
+
+Customer Device (Verification):
+- Identifies Merchant Public Key. 
+- Performs structural validation. 
+- Applies SHA256withECDSA `initVerify()` matching Canonical generation bytes.
+
+## 6. Key Lifecycle
+- **Key Alias:** `LMB_QR_SIGNING_KEY`
+- **Key Storage:** Android hardware-backed KeyStore. Un-exportable.
+- **Missing/Invalid:** Generates automatically on init if missing. Must rotate/bind public key dynamically natively against the backend on first login synchronization.
+- **Public Key Registry:** Expected to be hosted remotely mapping `merchantId` -> `PublicKey`.
+
+## 7. Replay Protection
+- Short expiry limits (Demo enforces 1 hour duration: `System.currentTimeMillis() - request.timestamp > 3600_000L`). 
+- Backend layer idempotency strictly prevents re-running successful `clientOperationId` requests rejecting duplicates natively globally across networks avoiding re-charging behaviors.
+
+## 8. Validation
+Boundary structurally validates constraints *prior* to hitting the internal processing `TransactionEngine`. Prevents structural spoofing traversing downstream networks. 
+Customer-side guards enforce `Amount > 0`, Expiry, Current Currencies (INR), matching Identities (rejects scanning your own merchant code).
+
+## 9. Transaction Lifecycle
+1. QR_CREATED (Offline)
+2. CUSTOMER_SCANNED (Offline) -> Boundary Validation
+3. PENDING_SYNC (SQLite Offline DB Status) 
+4. SYNCING (WorkManager network transition state)
+5. SETTLED (PostgreSQL Backend Confirmation Final State)
+
+## 10. Offline Limitations
+The system must NOT claim monetary transitions happen autonomously while offline. Output definitions map to `"Waiting for synchronization"` and `"Payment recorded offline"`. Settlement equates exclusively to Backend confirmation limits.
+
+## 11. Double-Spending Limitation
+This framework proves intentional authenticity. It does NOT eradicate local Double-Spending natively strictly offline. A user could issue 5 Offline proofs having bounded balances. Phase 3.1 defers logical bounds constraints specifically. Eventual limitations require strict Offline-Allowance quotas distributed defensively by the main PostgreSQL backend upon re-synchronizations.
+
+## 12. Security Decisions
+- **MITIGATED:** QR tampering, Signature forgery, Malformed structure, Unauthorized format attacks.
+- **PARTIALLY MITIGATED:** Replay attacks (Mitigated natively within expiration bounds, globally upon hitting internet/backend). 
+- **FUTURE WORK:** Offline Double Spending, Stale/Theft offline public key revocation endpoints. 
+
+## 13. Future Improvements
+Introduce backend-issued temporary allowance bounds dictating maximum total spending limits allowed completely off-grid before requiring a mandatory hard-token reauthentication synchronization sequence preventing massive net balance overdrafts.

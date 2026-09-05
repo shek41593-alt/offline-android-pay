@@ -78,7 +78,7 @@ class TransactionDetailsFragment : Fragment() {
         val isSent = state.isSent
 
         val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-        val amountValue = detail.amount ?: java.math.BigDecimal.ZERO
+        val amountValue = detail.amount
         val amountStr = currencyFormat.format(amountValue)
 
         if (detail.paymentMode == "WALLET_FUNDING") {
@@ -90,34 +90,45 @@ class TransactionDetailsFragment : Fragment() {
             binding.tvCounterpartyName.text = "Development Test Funding"
             binding.tvPaymentId.text = "-"
         } else if (isSent) {
-            binding.tvHeaderTitle.text = "Payment Successful"
+            val title = if (detail.status == "SETTLED" || detail.status == "COMPLETED") "Payment Successful" else "Payment recorded offline"
+            binding.tvHeaderTitle.text = title
             binding.tvAmount.text = "- $amountStr"
             binding.tvAmount.setTextColor(ContextCompat.getColor(requireContext(), R.color.color_error))
 
             binding.tvCounterpartyLabel.text = "Paid to"
-            binding.tvCounterpartyName.text = detail.recipient?.name ?: "Unknown"
-            binding.tvPaymentId.text = detail.recipient?.publicPaymentId ?: "Unknown"
+            binding.tvCounterpartyName.text = detail.receiverName.ifBlank { "Unknown" }
+            binding.tvPaymentId.text = detail.receiverId.ifBlank { "Unknown" }
         } else {
-            binding.tvHeaderTitle.text = "Payment Received"
+            val title = if (detail.status == "SETTLED" || detail.status == "COMPLETED") "Payment Received" else "Payment recorded offline"
+            binding.tvHeaderTitle.text = title
             binding.tvAmount.text = "+ $amountStr"
             binding.tvAmount.setTextColor(ContextCompat.getColor(requireContext(), R.color.color_success))
 
             binding.tvCounterpartyLabel.text = "Received from"
-            binding.tvCounterpartyName.text = detail.sender?.name ?: "Unknown"
-            binding.tvPaymentId.text = detail.sender?.publicPaymentId ?: "Unknown"
+            binding.tvCounterpartyName.text = "Unknown"
+            binding.tvPaymentId.text = detail.senderId.ifBlank { "Unknown" }
         }
 
-        val dateStr = detail.createdAt ?: ""
+        val dateStr = detail.createdAt.toString()
         var formattedDate = dateStr
         try {
-            val instant = Instant.parse(dateStr)
-            val date = Date.from(instant)
+            val date = Date(detail.createdAt)
             formattedDate = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(date)
         } catch (e: Exception) {
         }
         binding.tvDate.text = formattedDate
-        binding.tvTransactionId.text = detail.reference ?: detail.transactionId ?: "Unknown"
-        binding.tvStatus.text = detail.status ?: "UNKNOWN"
+        binding.tvTransactionId.text = detail.transactionHash.ifBlank { detail.transactionId }
+        
+        val statusText = when (detail.status) {
+            "PENDING_SYNC" -> "Waiting for synchronization"
+            "SYNCING" -> "Synchronizing"
+            "SETTLED", "SYNCED" -> "Payment settled"
+            "CONFLICT" -> "Payment requires attention"
+            "ACTION_REQUIRED" -> "Action required"
+            "FAILED" -> "Failed"
+            else -> detail.status
+        }
+        binding.tvStatus.text = statusText
     }
 
     private fun showError(message: String) {

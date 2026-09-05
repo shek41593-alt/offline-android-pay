@@ -57,6 +57,7 @@ data class AuthResponseDto(
 
 data class SyncTransactionRequestDto(
     val transactionId: String,
+    val clientOperationId: String,
     val senderId: String,
     val receiverId: String,
     val amount: BigDecimal,

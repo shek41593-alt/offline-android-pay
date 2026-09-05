@@ -25,6 +25,7 @@ class NetworkLayerTest {
     fun `Serialization tests for SyncTransactionRequestDto`() {
         val dto = SyncTransactionRequestDto(
             transactionId = "tx-123",
+            clientOperationId = "op-123",
             senderId = "user-1",
             receiverId = "user-2",
             amount = BigDecimal("100.50"),
@@ -36,6 +37,7 @@ class NetworkLayerTest {
         val json = gson.toJson(dto)
         val map = gson.fromJson(json, Map::class.java)
         assertEquals("tx-123", map["transactionId"])
+        assertEquals("op-123", map["clientOperationId"])
         assertEquals("user-1", map["senderId"])
         assertEquals("user-2", map["receiverId"])
         assertEquals(100.5, map["amount"])
@@ -103,7 +105,7 @@ class NetworkLayerTest {
         assertEquals("http://10.43.215.250:8080/api/v1/auth/login", capturedRequest?.url.toString())
         assertEquals("POST", capturedRequest?.method)
         
-        api.syncTransaction(SyncTransactionRequestDto("tx", "s", "r", BigDecimal.TEN, "INR", "QR", "ts", "sig"))
+        api.syncTransaction(SyncTransactionRequestDto("tx", "op-123", "s", "r", BigDecimal.TEN, "INR", "QR", "ts", "sig"))
         assertEquals("http://10.43.215.250:8080/api/v1/wallet/sync", capturedRequest?.url.toString())
         assertEquals("POST", capturedRequest?.method)
         

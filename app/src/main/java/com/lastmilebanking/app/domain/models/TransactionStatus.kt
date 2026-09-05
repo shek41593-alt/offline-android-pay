@@ -6,7 +6,10 @@ enum class TransactionStatus {
     PENDING_SYNC,
     SYNCING,
     SYNCED,
+    SETTLED,
     COMPLETED,
     FAILED,
-    CANCELLED
+    CANCELLED,
+    CONFLICT,
+    ACTION_REQUIRED
 }

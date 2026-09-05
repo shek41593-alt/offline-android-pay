@@ -2,8 +2,8 @@ package com.lastmilebanking.app.features.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lastmilebanking.app.data.network.api.LastMileApiService
-import com.lastmilebanking.app.data.network.dto.TransactionDetailResponseDto
+import com.lastmilebanking.app.domain.repository.TransactionRepository
+import com.lastmilebanking.app.data.local.entity.TransactionEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,13 +14,13 @@ import javax.inject.Inject
 
 sealed class TransactionDetailUiState {
     object Loading : TransactionDetailUiState()
-    data class Success(val detail: TransactionDetailResponseDto, val isSent: Boolean) : TransactionDetailUiState()
+    data class Success(val detail: TransactionEntity, val isSent: Boolean) : TransactionDetailUiState()
     data class Error(val message: String) : TransactionDetailUiState()
 }
 
 @HiltViewModel
 class TransactionDetailsViewModel @Inject constructor(
-    private val apiService: LastMileApiService,
+    private val transactionRepository: TransactionRepository,
     private val userRepository: com.lastmilebanking.app.data.repository.UserRepository
 ) : ViewModel() {
 
@@ -31,19 +31,10 @@ class TransactionDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.value = TransactionDetailUiState.Loading
-                val response = apiService.getTransactionDetail(transactionId)
-                if (response.isSuccessful && response.body() != null) {
-                    val detail = response.body()!!
-                    
-                    // Determine if current user is sender
-                    val myProfile = userRepository.getActiveUser().firstOrNull()
-                    val myPublicId = myProfile?.publicPaymentId
-                    
-                    // The user is the sender if their publicId matches sender's publicId or if it was deduced another way.
-                    // The backend could return the actual public ID of sender.
-                    val isSent = detail.sender?.publicPaymentId == myPublicId
-                    
-                    _uiState.value = TransactionDetailUiState.Success(detail, isSent)
+                val tx = transactionRepository.getTransactionById(transactionId)
+                if (tx != null) {
+                    val isSent = tx.transactionType == "SEND" || tx.transactionType == "WITHDRAW"
+                    _uiState.value = TransactionDetailUiState.Success(tx, isSent)
                 } else {
                     _uiState.value = TransactionDetailUiState.Error("Transaction not found")
                 }

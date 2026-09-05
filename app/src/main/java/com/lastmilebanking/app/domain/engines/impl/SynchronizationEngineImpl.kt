@@ -92,6 +92,7 @@ class SynchronizationEngineImpl @Inject constructor(
 
                     val requestDto = SyncTransactionRequestDto(
                         transactionId = tx.transactionId,
+                        clientOperationId = tx.clientOperationId,
                         senderId = tx.senderId,
                         receiverId = tx.receiverId, // Room uses receiverId
                         amount = BigDecimal.valueOf(tx.amount), // Preserve precision
@@ -105,11 +106,8 @@ class SynchronizationEngineImpl @Inject constructor(
 
                     if (response.isSuccessful) {
                         val body = response.body()
-                        if (body?.status == "RECEIVED" || body?.status == "DUPLICATE") {
-                            transactionDao.markAsSynced(syncingTx.transactionId)
-                            anyProcessed = true
-                        } else if (body?.status == "PROCESSING" || body?.status == "SETTLED") {
-                            transactionDao.markAsSynced(syncingTx.transactionId)
+                        if (body?.status == "RECEIVED" || body?.status == "DUPLICATE" || body?.status == "PROCESSING" || body?.status == "SETTLED") {
+                            transactionDao.updateSyncResult(syncingTx.transactionId, TransactionStatus.SETTLED.name, System.currentTimeMillis())
                             anyProcessed = true
                         } else {
                             transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
@@ -118,27 +116,30 @@ class SynchronizationEngineImpl @Inject constructor(
                     } else {
                         when (response.code()) {
                             401, 403 -> {
-                                // Auth error, do not retry automatically.
-                                // We keep it PENDING_SYNC but we don't throw to avoid WorkManager looping immediately.
-                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.ACTION_REQUIRED.name, retryCount = syncingTx.retryCount + 1, failureReason = "Unauthorized: ${response.code()}"))
+                                anyProcessed = true
                             }
                             400 -> {
-                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.ACTION_REQUIRED.name, retryCount = syncingTx.retryCount + 1, failureReason = "Bad Request"))
                                 anyProcessed = true
                             }
                             409 -> {
-                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.FAILED.name))
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.CONFLICT.name, retryCount = syncingTx.retryCount + 1, failureReason = "Idempotency Conflict"))
                                 anyProcessed = true
                             }
+                            429, 408, 500, 502, 503, 504 -> {
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name, retryCount = syncingTx.retryCount + 1, failureReason = "Transient Error ${response.code()}"))
+                                throw Exception("Transient server error ${response.code()}")
+                            }
                             else -> {
-                                // 5xx or other transient
-                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                                transactionDao.updateTransaction(syncingTx.copy(status = TransactionStatus.PENDING_SYNC.name, retryCount = syncingTx.retryCount + 1, failureReason = "Unknown Error ${response.code()}"))
                                 throw Exception("Transient server error ${response.code()}")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    transactionDao.updateTransaction(tx.copy(status = TransactionStatus.PENDING_SYNC.name))
+                    val fallbackReason = if (e.message != null && e.message?.contains("Transient server error") == false) e.message else "Connection/Transient Failure"
+                    transactionDao.updateTransaction(tx.copy(status = TransactionStatus.PENDING_SYNC.name, retryCount = tx.retryCount + 1, failureReason = fallbackReason))
                     throw e // Bubble up to trigger WorkManager retry
                 }
                 } // End for (tx in pending)

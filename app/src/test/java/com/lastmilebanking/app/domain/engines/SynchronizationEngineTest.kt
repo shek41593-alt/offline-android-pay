@@ -59,7 +59,7 @@ class SynchronizationEngineTest {
         runBlocking { transactionDao.insertTransaction(tx) }
         fakeApi.responses[tx.transactionId] = Response.success(SyncTransactionResponseDto(tx.transactionId, "RECEIVED", ""))
         runBlocking { syncEngine.uploadPendingTransactions() }
-        assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
+        assertEquals(TransactionStatus.SETTLED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
     @Test
@@ -69,7 +69,7 @@ class SynchronizationEngineTest {
         runBlocking { transactionDao.insertTransaction(tx) }
         fakeApi.responses[tx.transactionId] = Response.success(SyncTransactionResponseDto(tx.transactionId, "SETTLED", ""))
         runBlocking { syncEngine.uploadPendingTransactions() }
-        assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
+        assertEquals(TransactionStatus.SETTLED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
     @Test
@@ -97,6 +97,7 @@ class SynchronizationEngineTest {
         runBlocking { syncEngine.uploadPendingTransactions() }
         assertEquals(txId, transactionDao.transactions.values.first().transactionId)
         assertEquals(txId, fakeApi.requests.first().transactionId)
+        assertEquals(tx.clientOperationId, fakeApi.requests.first().clientOperationId)
     }
 
     @Test
@@ -109,7 +110,7 @@ class SynchronizationEngineTest {
             syncEngine.uploadPendingTransactions()
         }
         assertEquals(1, transactionDao.transactions.size)
-        assertEquals(TransactionStatus.SYNCED.name, transactionDao.transactions[tx.transactionId]?.status)
+        assertEquals(TransactionStatus.SETTLED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
     @Test
@@ -119,7 +120,7 @@ class SynchronizationEngineTest {
         runBlocking { transactionDao.insertTransaction(tx) }
         fakeApi.responses[tx.transactionId] = Response.error(400, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
         runBlocking { syncEngine.uploadPendingTransactions() } 
-        assertEquals(TransactionStatus.FAILED.name, transactionDao.transactions[tx.transactionId]?.status)
+        assertEquals(TransactionStatus.ACTION_REQUIRED.name, transactionDao.transactions[tx.transactionId]?.status)
     }
 
     @Test
@@ -133,7 +134,56 @@ class SynchronizationEngineTest {
         syncEngine.uploadPendingTransactions()
 
         val updated = transactionDao.transactions[tx.transactionId]!!
-        assertEquals(TransactionStatus.PENDING_SYNC.name, updated.status)
+        assertEquals(TransactionStatus.ACTION_REQUIRED.name, updated.status)
+        assertEquals(1, updated.retryCount)
+    }
+    
+    @Test
+    fun `TEST 10 - 409 Conflict behavior`() = runBlocking {
+        val tx = createTx(TransactionStatus.PENDING_SYNC)
+        transactionDao.insertTransaction(tx)
+
+        fakeApi.responses[tx.transactionId] = Response.error(409, "{}".toResponseBody("application/json".toMediaTypeOrNull()))
+
+        // Does not throw exception
+        syncEngine.uploadPendingTransactions()
+
+        val updated = transactionDao.transactions[tx.transactionId]!!
+        assertEquals(TransactionStatus.CONFLICT.name, updated.status)
+        assertEquals(1, updated.retryCount)
+    }
+    
+    @Test
+    fun `TEST 11 - Partial batch behavior with sequence`() = runBlocking {
+        connectivityObserver.isConnected = true
+        // TX1 success
+        val tx1 = createTx(TransactionStatus.PENDING_SYNC).copy(transactionId = "TX1")
+        // TX2 connection timeout (Exception)
+        val tx2 = createTx(TransactionStatus.PENDING_SYNC).copy(transactionId = "TX2", createdAt = System.currentTimeMillis() + 10)
+        // TX3 not processed
+        val tx3 = createTx(TransactionStatus.PENDING_SYNC).copy(transactionId = "TX3", createdAt = System.currentTimeMillis() + 20)
+        
+        transactionDao.insertTransaction(tx1)
+        transactionDao.insertTransaction(tx2)
+        transactionDao.insertTransaction(tx3)
+
+        fakeApi.responses[tx1.transactionId] = Response.success(SyncTransactionResponseDto(tx1.transactionId, "SETTLED", ""))
+        // no response for TX2 means it will return 500 by FakeApi which throws "Transient server error 500"
+        
+        var threw = false
+        try {
+            syncEngine.uploadPendingTransactions()
+        } catch (e: Exception) {
+            threw = true
+        }
+        
+        assertTrue(threw)
+        
+        assertEquals(TransactionStatus.SETTLED.name, transactionDao.transactions["TX1"]?.status)
+        assertEquals(TransactionStatus.PENDING_SYNC.name, transactionDao.transactions["TX2"]?.status)
+        assertEquals(1, transactionDao.transactions["TX2"]?.retryCount)
+        assertEquals(TransactionStatus.PENDING_SYNC.name, transactionDao.transactions["TX3"]?.status)
+        assertEquals(0, transactionDao.transactions["TX3"]?.retryCount) // Unprocessed
     }
 
     private fun createTx(status: TransactionStatus): TransactionEntity {
@@ -176,8 +226,12 @@ class FakeTransactionDao : TransactionDao {
     override fun getPendingCount(walletId: String) = kotlinx.coroutines.flow.flowOf(0)
     
     override suspend fun getTransactionByClientOperationId(clientOperationId: String): TransactionEntity? = null
-    override suspend fun updateTransactionStatus(id: String, status: String) {}
-    override suspend fun updateSyncResult(id: String, status: String, syncedAt: Long?) {}
+    override suspend fun updateTransactionStatus(id: String, status: String) {
+        transactions[id] = transactions[id]?.copy(status = status)!! 
+    }
+    override suspend fun updateSyncResult(id: String, status: String, syncedAt: Long?) {
+        transactions[id] = transactions[id]?.copy(status = status, isSynced = true, syncedAt = syncedAt)!!
+    }
     override fun getTransactionHistory(walletId: String) = kotlinx.coroutines.flow.flowOf<List<TransactionEntity>>()
 }
 

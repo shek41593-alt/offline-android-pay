@@ -56,6 +56,10 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
+        binding.btnReceivePayment.setOnClickListener {
+            androidx.navigation.Navigation.findNavController(requireView())
+                .navigate(R.id.action_home_to_receivePayment)
+        }
         binding.btnQrPay.setOnClickListener {
             androidx.navigation.Navigation.findNavController(requireView())
                 .navigate(R.id.action_home_to_qr)

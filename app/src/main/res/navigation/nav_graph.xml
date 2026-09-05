@@ -150,6 +150,9 @@
         <action
             android:id="@+id/action_home_to_transactionDetails"
             app:destination="@id/transactionDetailsFragment" />
+        <action
+            android:id="@+id/action_home_to_receivePayment"
+            app:destination="@id/merchantReceivePaymentFragment" />
     </fragment>
 
     <fragment
@@ -220,5 +223,31 @@
         android:name="com.lastmilebanking.app.features.wallet.AddMoneyFragment"
         android:label="Add Money"
         tools:layout="@layout/fragment_add_money" />
+
+    <fragment
+        android:id="@+id/merchantReceivePaymentFragment"
+        android:name="com.lastmilebanking.app.features.payments.MerchantReceivePaymentFragment"
+        android:label="Receive Payment"
+        tools:layout="@layout/fragment_merchant_receive_payment">
+        <action
+            android:id="@+id/action_receive_to_display"
+            app:destination="@id/merchantQrDisplayFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/merchantQrDisplayFragment"
+        android:name="com.lastmilebanking.app.features.payments.MerchantQrDisplayFragment"
+        android:label="Scan to Pay"
+        tools:layout="@layout/fragment_merchant_qr_display">
+        <argument
+            android:name="canonicalPayload"
+            app:argType="string" />
+        <argument
+            android:name="amount"
+            app:argType="string" />
+        <argument
+            android:name="merchantName"
+            app:argType="string" />
+    </fragment>
 
 </navigation>

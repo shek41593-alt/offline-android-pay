@@ -78,3 +78,26 @@ This framework proves intentional authenticity. It does NOT eradicate local Doub
 
 ## 13. Future Improvements
 Introduce backend-issued temporary allowance bounds dictating maximum total spending limits allowed completely off-grid before requiring a mandatory hard-token reauthentication synchronization sequence preventing massive net balance overdrafts.
+
+## Phase 3.2 — Merchant QR Generation
+### Merchant Flow
+Merchants engage an isolated offline workflow navigating from `Merchant Home` -> `Receive Payment`. The merchant declares the payment intent's structural bound (e.g. amount) prior to exposing the QR representation manually.
+
+### QR Generation
+`OfflineQrPaymentRequest` payload bytes generate cleanly via `Zxing` embedded implementations creating offline bitmap outputs rendering securely within strictly controlled view parameters without storing state.  
+
+### Expiration
+System enforces deterministic 1-Hour window validations globally mapped sequentially.
+
+### Cancellation
+Cancellations merely drop physical QR displays clearing session bounds. Financial bounds remain untampered internally.
+
+### Offline/No-Network Behavior
+All bindings generated sequentially execute purely offline inside Android environments via `SecureRandom` mapped internally fetching user identity parameters through local SQLite dependencies (`UserRepository`, `WalletRepository`) independent of Retrofit networking dependencies securely enabling strict Airplane Mode environments.
+
+### Wallet Mutation Rules
+Generating QR signatures actively bypasses existing UI balances securely skipping any mutation. Only actual remote-backend transactions synced synchronously execute settlement bindings updating locally mapped `WalletEntity`.
+
+### Security Boundaries
+Signatures execute bound via Android hardware Keystore layers isolating ECDSA keys securely from serialization breaches.
+

@@ -330,6 +330,7 @@
                 app:tint="#4CAF50" />
 
             <TextView
+                android:id="@+id/tvSuccessTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Payment Successful"
@@ -337,6 +338,16 @@
                 android:textStyle="bold"
                 android:textColor="#4CAF50"
                 android:layout_marginTop="16dp" />
+
+            <TextView
+                android:id="@+id/tvSuccessSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✓ Recorded offline\nWaiting for synchronization"
+                android:textAlignment="center"
+                android:textColor="#AAAAAA"
+                android:visibility="gone"
+                android:layout_marginTop="8dp" />
 
             <TextView
                 android:id="@+id/tvSuccessAmount"

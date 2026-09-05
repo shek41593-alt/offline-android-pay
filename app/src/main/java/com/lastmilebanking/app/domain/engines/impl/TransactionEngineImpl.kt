@@ -25,9 +25,10 @@ class TransactionEngineImpl @Inject constructor(
         senderWalletId: String,
         receiverWalletId: String,
         amount: Double,
-        transactionType: String
+        transactionType: String,
+        clientOperationId: String?
     ): Result<String> {
-        return performTransactionCreation(senderWalletId, receiverWalletId, amount, transactionType, "OFFLINE")
+        return performTransactionCreation(senderWalletId, receiverWalletId, amount, transactionType, "OFFLINE", clientOperationId)
     }
 
     override suspend fun createTransaction(
@@ -45,7 +46,8 @@ class TransactionEngineImpl @Inject constructor(
         receiverWalletId: String,
         amount: Double,
         transactionType: String,
-        paymentMode: String
+        paymentMode: String,
+        externalClientOperationId: String? = null
     ): Result<String> {
         // 1. Validation
         if (amount <= 0.0) {
@@ -70,17 +72,17 @@ class TransactionEngineImpl @Inject constructor(
 
         // 2. ID Generation
         val transactionId = generateTransactionId()
-        val clientOperationId = generateClientOperationId()
+        val finalClientOperationId = externalClientOperationId ?: generateClientOperationId()
         val createdAt = System.currentTimeMillis()
 
         // 3. Hashing
-        val payloadToHash = "$clientOperationId|$senderWalletId|$receiverWalletId|$amount|$transactionType|$createdAt"
+        val payloadToHash = "$finalClientOperationId|$senderWalletId|$receiverWalletId|$amount|$transactionType|$createdAt"
         val transactionHash = generateTransactionHash(payloadToHash)
 
         // 4. Persistence Entity
         val entity = TransactionEntity(
             transactionId = transactionId,
-            clientOperationId = clientOperationId,
+            clientOperationId = finalClientOperationId,
             senderWalletId = senderWalletId,
             receiverWalletId = receiverWalletId,
             walletId = senderWalletId, // For compatibility

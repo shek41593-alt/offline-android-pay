@@ -5,7 +5,8 @@ interface TransactionEngine {
         senderWalletId: String,
         receiverWalletId: String,
         amount: Double,
-        transactionType: String
+        transactionType: String,
+        clientOperationId: String? = null
     ): Result<String>
     suspend fun createTransaction(senderId: String, receiverId: String, amount: Double, type: String, paymentMode: String = "SMS"): Result<String>
     fun validateTransaction(transactionId: String): Boolean

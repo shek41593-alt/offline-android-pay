@@ -101,3 +101,23 @@ Generating QR signatures actively bypasses existing UI balances securely skippin
 ### Security Boundaries
 Signatures execute bound via Android hardware Keystore layers isolating ECDSA keys securely from serialization breaches.
 
+## Phase 3.3 — Customer QR Scanning
+
+### Scan Flow
+Customer selects "Scan QR" and aligns the merchant's generated QR code within the view frame. The camera decodes the QR string seamlessly completely offline without hitting any backend resolution mechanisms.
+
+### Validation Order
+1. **Decode**: Capture Raw QR bits mapping via ZXing `BarcodeCallback`.
+2. **Parse**: Unmarshall structural `OfflineQrPaymentRequest` payload bytes verifying correct JSON schemas and required protocol fields.
+3. **Validate**: Bound amount (> 0), operational timing dependencies (expiration offsets <= 1HR), identity integrity (Sender ≠ Receiver).
+4. **Signature Verification**: Validates `ECDSA` signature against reconstructed Canonical representations confirming absolute merchant authenticity.
+5. **Confirmation Render**: Explicit UI displays merchant details exactly as resolved without arbitrary manipulation forcing confirmation.
+
+### Transaction Creation Boundary
+Only upon rigorous explicit `Confirm` interaction does the local `TransactionEngine` generate durability footprints mapped explicitly via localized `SenderWallet` -> `ReceiverWallet` abstractions. 
+`clientOperationId` is preserved seamlessly from the merchant's signature mapping into the `TransactionEntity`. Resulting statuses default explicitly to `PENDING_SYNC` maintaining offline double-entry boundaries securely avoiding UI balances inflation.
+
+### Known Limitations
+Network public key registries are simulated utilizing local runtime single-instantiated boundaries pending backend integration inside subsequent iterations mapping Trust networks properly.
+
+

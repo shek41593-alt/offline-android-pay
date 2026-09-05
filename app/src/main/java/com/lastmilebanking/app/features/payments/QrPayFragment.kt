@@ -101,6 +101,8 @@ class QrPayFragment : Fragment() {
         val btnConfirmPayment = view.findViewById<View>(R.id.btnConfirmPayment)
 
         val successContainer = view.findViewById<View>(R.id.successContainer)
+        val tvSuccessTitle = view.findViewById<android.widget.TextView>(R.id.tvSuccessTitle)
+        val tvSuccessSubtitle = view.findViewById<android.widget.TextView>(R.id.tvSuccessSubtitle)
         val tvSuccessAmount = view.findViewById<android.widget.TextView>(R.id.tvSuccessAmount)
         val tvSuccessName = view.findViewById<android.widget.TextView>(R.id.tvSuccessName)
         val tvSuccessTransactionId = view.findViewById<android.widget.TextView>(R.id.tvSuccessTransactionId)
@@ -168,12 +170,36 @@ class QrPayFragment : Fragment() {
                             tvReviewPaymentId.text = state.publicPaymentId
                             tvReviewAmount.text = "₹${state.amount}"
                         }
+                        is QrPayState.OfflinePaymentReview -> {
+                            paymentDialog?.dismiss()
+                            recipientContainer.visibility = View.GONE
+                            amountContainer.visibility = View.GONE
+                            reviewContainer.visibility = View.VISIBLE
+                            successContainer.visibility = View.GONE
+                            barcodeScannerView.visibility = View.GONE
+                            
+                            btnConfirmPayment.isEnabled = true
+                            currentIdempotencyKey = state.request.clientOperationId
+                            
+                            tvReviewName.text = state.merchantName
+                            tvReviewPaymentId.text = state.request.merchantId
+                            tvReviewAmount.text = "₹${state.request.amount}"
+                        }
                         is QrPayState.Success -> {
                             paymentDialog?.dismiss()
                             recipientContainer.visibility = View.GONE
                             amountContainer.visibility = View.GONE
                             reviewContainer.visibility = View.GONE
                             successContainer.visibility = View.VISIBLE
+                            
+                            if (state.isOffline) {
+                                tvSuccessTitle.text = "Payment Recorded"
+                                tvSuccessTitle.setTextColor(android.graphics.Color.parseColor("#4CAF50"))
+                                tvSuccessSubtitle.visibility = View.VISIBLE
+                            } else {
+                                tvSuccessTitle.text = "Payment Successful"
+                                tvSuccessSubtitle.visibility = View.GONE
+                            }
                             
                             tvSuccessName.text = state.name
                             tvSuccessAmount.text = "₹${state.amount}"

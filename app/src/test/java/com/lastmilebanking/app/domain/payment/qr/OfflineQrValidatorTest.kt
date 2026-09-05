@@ -139,7 +139,7 @@ class OfflineQrValidatorTest {
     @Test
     fun `16 - Tampered modified timestamp`() {
         val original = createValidRequest()
-        val malicious = original.copy(timestamp = System.currentTimeMillis())
+        val malicious = original.copy(timestamp = original.timestamp + 1000L)
         assertEquals(QrValidationResult.Invalid("Invalid signature"), validator.validate(malicious))
     }
 

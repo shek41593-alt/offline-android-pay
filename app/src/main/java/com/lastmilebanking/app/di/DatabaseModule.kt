@@ -6,6 +6,7 @@ import com.lastmilebanking.app.data.local.LastMileDatabase
 import com.lastmilebanking.app.data.local.dao.TransactionDao
 import com.lastmilebanking.app.data.local.dao.UserDao
 import com.lastmilebanking.app.data.local.dao.WalletDao
+import com.lastmilebanking.app.data.local.dao.TrustedMerchantKeyDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,7 +26,7 @@ object DatabaseModule {
             LastMileDatabase::class.java,
             LastMileDatabase.DATABASE_NAME
         )
-            .addMigrations(LastMileDatabase.MIGRATION_2_3, LastMileDatabase.MIGRATION_3_4)
+            .addMigrations(LastMileDatabase.MIGRATION_2_3, LastMileDatabase.MIGRATION_3_4, LastMileDatabase.MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -41,4 +42,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideTransactionDao(db: LastMileDatabase): TransactionDao = db.transactionDao()
+    
+    @Provides
+    @Singleton
+    fun provideTrustedMerchantKeyDao(db: LastMileDatabase): TrustedMerchantKeyDao = db.trustedMerchantKeyDao()
 }

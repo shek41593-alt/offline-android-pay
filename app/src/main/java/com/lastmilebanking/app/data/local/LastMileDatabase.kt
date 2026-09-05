@@ -8,20 +8,24 @@ import com.lastmilebanking.app.data.local.dao.WalletDao
 import com.lastmilebanking.app.data.local.entity.TransactionEntity
 import com.lastmilebanking.app.data.local.entity.UserEntity
 import com.lastmilebanking.app.data.local.entity.WalletEntity
+import com.lastmilebanking.app.data.local.dao.TrustedMerchantKeyDao
+import com.lastmilebanking.app.data.local.entity.TrustedMerchantKeyEntity
 
 @Database(
     entities = [
         UserEntity::class,
         WalletEntity::class,
-        TransactionEntity::class
+        TransactionEntity::class,
+        TrustedMerchantKeyEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class LastMileDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun walletDao(): WalletDao
     abstract fun transactionDao(): TransactionDao
+    abstract fun trustedMerchantKeyDao(): TrustedMerchantKeyDao
 
     companion object {
         const val DATABASE_NAME = "last_mile_banking.db"
@@ -95,6 +99,24 @@ abstract class LastMileDatabase : RoomDatabase() {
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_transactions_clientOperationId` ON `transactions` (`clientOperationId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_status` ON `transactions` (`status`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_createdAt` ON `transactions` (`createdAt`)")
+            }
+        }
+        
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `trusted_merchant_keys` (
+                        `merchantId` TEXT NOT NULL,
+                        `merchantWalletId` TEXT NOT NULL,
+                        `publicKeyBase64` TEXT NOT NULL,
+                        `keyAlgorithm` TEXT NOT NULL,
+                        `signatureAlgorithm` TEXT NOT NULL,
+                        `fingerprint` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`merchantId`)
+                    )
+                """.trimIndent())
             }
         }
     }

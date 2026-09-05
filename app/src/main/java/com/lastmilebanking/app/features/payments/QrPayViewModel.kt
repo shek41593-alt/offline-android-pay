@@ -30,15 +30,12 @@ class QrPayViewModel @Inject constructor(
     private val userRepository: com.lastmilebanking.app.data.repository.UserRepository,
     private val walletRepository: com.lastmilebanking.app.data.repository.WalletRepository,
     private val apiService: com.lastmilebanking.app.data.network.api.LastMileApiService,
-    private val transactionEngine: com.lastmilebanking.app.domain.engines.TransactionEngine
+    private val transactionEngine: com.lastmilebanking.app.domain.engines.TransactionEngine,
+    private val trustedMerchantKeyRepository: com.lastmilebanking.app.data.repository.TrustedMerchantKeyRepository
 ) : ViewModel() {
 
-    // Helper classes for parsing and offline verification. 
-    // Uses AndroidKeystoreQrVerifier with dummy registry for demo.
+    // Helper parser for Offline payload
     private val parser = com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentParser()
-    private val verifier = com.lastmilebanking.app.domain.payment.qr.AndroidKeystoreQrVerifier { 
-        com.lastmilebanking.app.domain.payment.qr.AndroidKeystoreQrSigner().getPublicKey() 
-    }
 
     private val _uiState = MutableStateFlow<QrPayState>(QrPayState.Idle)
     val uiState: StateFlow<QrPayState> = _uiState
@@ -88,16 +85,39 @@ class QrPayViewModel @Inject constructor(
                 return@launch
             }
 
+            val trustedKeyEntity = trustedMerchantKeyRepository.getTrustedKey(request.merchantId)
+            if (trustedKeyEntity == null) {
+                _uiState.value = QrPayState.Error("Merchant is not trusted on this device.")
+                return@launch
+            }
+            
+            val publicKeyBytes = android.util.Base64.decode(trustedKeyEntity.publicKeyBase64, android.util.Base64.DEFAULT)
+            val keySpec = java.security.spec.X509EncodedKeySpec(publicKeyBytes)
+            val keyFactory = java.security.KeyFactory.getInstance(trustedKeyEntity.keyAlgorithm)
+            val merchantPublicKey = keyFactory.generatePublic(keySpec)
+            
+            val verifier = com.lastmilebanking.app.domain.payment.qr.AndroidKeystoreQrVerifier { merchantPublicKey }
+
             val validator = com.lastmilebanking.app.domain.payment.qr.OfflineQrValidator(verifier, wallet.walletId)
             val validationResult = validator.validate(request)
             
             if (validationResult is com.lastmilebanking.app.domain.payment.qr.QrValidationResult.Invalid) {
-                _uiState.value = QrPayState.Error(validationResult.reason)
+                val errorMsg = if (validationResult.reason.contains("signature", ignoreCase = true)) {
+                    "Invalid merchant signature."
+                } else if (validationResult.reason.contains("expired", ignoreCase = true)) {
+                    "Payment QR has expired."
+                } else if (validationResult.reason.contains("version") || validationResult.reason.contains("unsupported", ignoreCase = true)) {
+                    "Invalid payment QR."
+                } else {
+                    validationResult.reason
+                }
+                _uiState.value = QrPayState.Error(errorMsg)
                 return@launch
             }
 
-            // Public key registry fallback for UI. In real prod, fetch from reliable cache.
+            // Public key verified securely against Trusted constraints correctly.
             val merchantName = if (request.merchantId == "MERCHANT_TEST") "Test Merchant" else "Offline Merchant"
+
             
             _uiState.value = QrPayState.OfflinePaymentReview(request, merchantName)
         }

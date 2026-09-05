@@ -9,9 +9,10 @@ import java.security.PublicKey
 import java.security.Signature
 import java.util.Base64
 
-class AndroidKeystoreQrSigner : OfflineQrSigner {
+class AndroidKeystoreQrSigner(
+    private val keyAlias: String = "LMB_QR_SIGNING_KEY"
+) : OfflineQrSigner {
     private val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-    private val keyAlias = "LMB_QR_SIGNING_KEY"
 
     init {
         generateKeyIfNotExists()

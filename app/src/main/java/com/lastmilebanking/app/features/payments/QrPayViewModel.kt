@@ -20,7 +20,7 @@ sealed class QrPayState {
     data class RecipientFound(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val balance: java.math.BigDecimal) : QrPayState()
     data class PaymentAmount(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val balance: java.math.BigDecimal) : QrPayState()
     data class PaymentReview(val publicPaymentId: String, val name: String, val phone: String, val userId: String, val amount: java.math.BigDecimal, val idempotencyKey: String) : QrPayState()
-    data class Success(val transactionId: String, val amount: java.math.BigDecimal, val name: String, val isOffline: Boolean = false) : QrPayState()
+    data class Success(val transactionId: String, val amount: java.math.BigDecimal, val name: String, val isOffline: Boolean = false, val proofString: String? = null) : QrPayState()
     data class Error(val message: String) : QrPayState()
     data class OfflinePaymentReview(val request: com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentRequest, val merchantName: String) : QrPayState()
 }
@@ -260,11 +260,40 @@ class QrPayViewModel @Inject constructor(
             
             if (result.isSuccess) {
                 val transactionId = result.getOrNull() ?: request.clientOperationId
+                
+                // --- Phase 3.4 Generate Proof ---
+                val nonceBytes = ByteArray(16)
+                java.security.SecureRandom().nextBytes(nonceBytes)
+                val nonceBase64 = android.util.Base64.encodeToString(nonceBytes, android.util.Base64.NO_WRAP)
+                
+                val proofReq = com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentProof(
+                    version = 1,
+                    type = "LMB_PAYMENT_PROOF",
+                    clientOperationId = request.clientOperationId,
+                    transactionId = transactionId,
+                    merchantId = request.merchantId,
+                    merchantWalletId = request.merchantWalletId,
+                    customerWalletId = wallet.walletId,
+                    amount = request.amount,
+                    currency = request.currency,
+                    timestamp = System.currentTimeMillis(),
+                    nonce = nonceBase64,
+                    paymentMode = "OFFLINE_QR"
+                )
+                
+                val proofSigner = com.lastmilebanking.app.domain.payment.qr.AndroidKeystoreQrSigner("LMB_CUSTOMER_PROOF_KEY")
+                val canonicalProof = com.lastmilebanking.app.domain.payment.qr.OfflineQrPaymentProofPayload.buildCanonicalPayload(proofReq)
+                val signature = proofSigner.sign(canonicalProof)
+                val finalProof = proofReq.copy(signature = signature)
+                val proofString = com.google.gson.Gson().toJson(finalProof)
+                // --------------------------------
+                
                 _uiState.value = QrPayState.Success(
                     transactionId = transactionId,
                     amount = java.math.BigDecimal(request.amount),
                     name = if (request.merchantId == "MERCHANT_TEST") "Test Merchant" else "Offline Merchant",
-                    isOffline = true
+                    isOffline = true,
+                    proofString = proofString
                 )
             } else {
                 _uiState.value = QrPayState.Error(result.exceptionOrNull()?.message ?: "Transaction creation failed")

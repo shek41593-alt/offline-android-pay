@@ -21,6 +21,10 @@ import com.google.zxing.ResultPoint
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import android.graphics.Bitmap
+import android.graphics.Color
 import com.lastmilebanking.app.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -106,6 +110,7 @@ class QrPayFragment : Fragment() {
         val tvSuccessAmount = view.findViewById<android.widget.TextView>(R.id.tvSuccessAmount)
         val tvSuccessName = view.findViewById<android.widget.TextView>(R.id.tvSuccessName)
         val tvSuccessTransactionId = view.findViewById<android.widget.TextView>(R.id.tvSuccessTransactionId)
+        val ivProofQr = view.findViewById<android.widget.ImageView>(R.id.ivProofQr)
         val btnDone = view.findViewById<View>(R.id.btnDone)
 
         btnContinue.setOnClickListener {
@@ -195,10 +200,31 @@ class QrPayFragment : Fragment() {
                             if (state.isOffline) {
                                 tvSuccessTitle.text = "Payment Recorded"
                                 tvSuccessTitle.setTextColor(android.graphics.Color.parseColor("#4CAF50"))
+                                tvSuccessSubtitle.text = "✓ Recorded offline\nPayment proof created\nWaiting for synchronization"
                                 tvSuccessSubtitle.visibility = View.VISIBLE
+                                
+                                if (state.proofString != null) {
+                                    try {
+                                        val writer = QRCodeWriter()
+                                        val bitMatrix = writer.encode(state.proofString, BarcodeFormat.QR_CODE, 400, 400)
+                                        val width = bitMatrix.width
+                                        val height = bitMatrix.height
+                                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                                        for (x in 0 until width) {
+                                            for (y in 0 until height) {
+                                                bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                                            }
+                                        }
+                                        ivProofQr.setImageBitmap(bitmap)
+                                        ivProofQr.visibility = View.VISIBLE
+                                    } catch (e: Exception) {
+                                        // Ignore
+                                    }
+                                }
                             } else {
                                 tvSuccessTitle.text = "Payment Successful"
                                 tvSuccessSubtitle.visibility = View.GONE
+                                ivProofQr.visibility = View.GONE
                             }
                             
                             tvSuccessName.text = state.name

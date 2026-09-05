@@ -120,4 +120,37 @@ Only upon rigorous explicit `Confirm` interaction does the local `TransactionEng
 ### Known Limitations
 Network public key registries are simulated utilizing local runtime single-instantiated boundaries pending backend integration inside subsequent iterations mapping Trust networks properly.
 
+## Phase 3.4 — Offline Payment Proof
+
+### Payment Proof Transport Model
+Phase 3.4 expands the security bound to establish offline Customer-to-Merchant confirmations. The transaction boundary ensures robust tracking through `OfflineQrPaymentProof`.
+
+### Protocol Schema
+```json
+{
+  "version": 1,
+  "type": "LMB_PAYMENT_PROOF",
+  "clientOperationId": "...",
+  "transactionId": "...",
+  "merchantId": "...",
+  "merchantWalletId": "...",
+  "customerWalletId": "...",
+  "amount": "...",
+  "currency": "INR",
+  "timestamp": 123456789,
+  "nonce": "securely_generated",
+  "paymentMode": "OFFLINE_QR",
+  "signature": "..."
+}
+```
+
+### Trust & Integrity Rules
+1. **Separation of Keys**: Customer signatures bound via `LMB_CUSTOMER_PROOF_KEY` guaranteeing distinction between Merchant issuance and Customer endorsement.
+2. **Deterministic Canonicalization**: Serializes bytes exactly: `version|type|clientOperationId|transactionId|merchantId|merchantWalletId|customerWalletId|amount|currency|timestamp|nonce|paymentMode`.
+3. **Transaction Binding**: Preserves backend structural logic by leveraging purely explicit IDs natively preventing double operation generation.
+4. **Offline Double-Spending Warning**: This cryptographic signature definitively asserts Customer Consent, but intrinsically cannot prove global settled funds without eventual synchronization. Validation determines authorization, but final reconciliation executes securely strictly at Backend layer.
+
+### Scan Flow & Replay Protections
+Merchant receives the confirmation via inverted QR scanning. `OfflineQrPaymentProofValidator` re-evaluates all temporal boundaries actively mitigating replays via rigid Nonce mapping against existing offline operations definitively. Mismatched proof (e.g. invalid merchant, altered amounts) actively generates failed states throwing validation boundaries properly.
+
 

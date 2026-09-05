@@ -100,6 +100,7 @@ class BluetoothClassicTransport(
         try {
             while (true) {
                 val bytes = inputStream?.read(buffer) ?: break
+                if (bytes == -1) break
                 if (bytes > 0) {
                     val chunk = String(buffer, 0, bytes, Charsets.UTF_8)
                     sb.append(chunk) // We assume a simplistic EOF delimiter '\n' for framing
